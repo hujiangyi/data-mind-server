@@ -1,0 +1,21 @@
+FROM golang:1.23-bookworm AS runtime-assets
+FROM busybox:1.36.1 AS healthcheck
+FROM debian:bookworm-slim
+
+COPY --from=runtime-assets /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=healthcheck /bin/busybox /usr/local/bin/busybox
+
+WORKDIR /opt/datamind
+
+COPY bin/daas-go /opt/datamind/bin/daas-go
+COPY configs/ /opt/datamind/configs/
+COPY migrations/ /opt/datamind/migrations/
+
+RUN chmod 0755 /opt/datamind/bin/daas-go
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=6 \
+    CMD /usr/local/bin/busybox wget -q -O /dev/null http://127.0.0.1:3001/health
+
+ENTRYPOINT ["/opt/datamind/bin/daas-go", "-config", "/opt/datamind/configs/config.yaml"]

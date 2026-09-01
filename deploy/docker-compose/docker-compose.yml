@@ -1,0 +1,29 @@
+services:
+  datamind:
+    image: ${DATAMIND_IMAGE:-datamind:latest}
+    restart: unless-stopped
+    environment:
+      DATAMIND_CONFIG: /etc/datamind/config.yaml
+      DATAMIND_CLOUD_API_BASE: ${DATAMIND_CLOUD_API_BASE}
+      DATAMIND_CLOUD_KEY_FILE: /var/lib/datamind/cloud-keys.json
+    volumes:
+      - datamind-data:/var/lib/datamind
+      - ./config.yaml:/etc/datamind/config.yaml:ro
+    expose:
+      - "8082"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - datamind
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ../nginx/datamind.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend:/opt/datamind/current/frontend:ro
+      - ./certs:/etc/nginx/certs:ro
+
+volumes:
+  datamind-data:

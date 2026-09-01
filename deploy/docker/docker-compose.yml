@@ -1,0 +1,25 @@
+services:
+  datamind-go:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+    platform: ${DATAMIND_DOCKER_PLATFORM:-linux/amd64}
+    env_file:
+      - .env
+    ports:
+      - "${DATAMIND_BIND_ADDRESS:-127.0.0.1}:${DATAMIND_PORT:-3001}:3001"
+    volumes:
+      - ./data:/opt/datamind/data
+      - ./configs:/opt/datamind/configs:ro
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://127.0.0.1:3001/health
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 6
