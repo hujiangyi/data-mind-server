@@ -64,3 +64,10 @@ export DAAS_MCP_SETUP_BASE_URL=https://go.example.com
 ```
 
 源选择变量和镜像同步方式请参考[Release 镜像](release-mirrors.md)。
+
+## 相关说明
+
+- [云端 API Key](api-key.md)
+- [MCP 与云端协议边界](protocol.md)
+- [Nginx 部署](nginx.md)
+- [故障排查](troubleshooting.md)

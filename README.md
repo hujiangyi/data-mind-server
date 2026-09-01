@@ -57,6 +57,13 @@ service. See:
 - [Windows Docker](docs/en/windows-docker.md)
 - [Release mirrors](docs/en/release-mirrors.md)
 
+### API keys and protocol
+
+Server-side authorization and protocol boundaries are documented here:
+
+- [Cloud API keys](docs/en/api-key.md)
+- [MCP and Cloud protocol boundaries](docs/en/protocol.md)
+
 ## Server configuration
 
 The server requires separate configuration for:

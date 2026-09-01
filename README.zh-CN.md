@@ -53,6 +53,13 @@ http://127.0.0.1:3001
 - [Windows Docker](docs/zh-CN/windows-docker.md)
 - [Release 镜像](docs/zh-CN/release-mirrors.md)
 
+### API Key 和协议
+
+服务端授权边界、Cloud API Key 和 MCP 协议说明：
+
+- [云端 API Key](docs/zh-CN/api-key.md)
+- [MCP 与云端协议边界](docs/zh-CN/protocol.md)
+
 ## 服务端配置
 
 服务端需要单独配置：

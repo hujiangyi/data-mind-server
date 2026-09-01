@@ -68,3 +68,10 @@ export DAAS_MCP_SETUP_BASE_URL=https://go.example.com
 ```
 
 See [Release mirrors](release-mirrors.md) for source selection variables.
+
+## Related documentation
+
+- [Cloud API keys](api-key.md)
+- [MCP and Cloud protocol boundaries](protocol.md)
+- [Nginx deployment](nginx.md)
+- [Troubleshooting](troubleshooting.md)
