@@ -106,8 +106,6 @@ DataMind is intended for deployments that need:
 - AI to use controlled server capabilities instead of a database superuser
   account;
 - Cloud API keys to remain on the Go service for access to the Cloud AI relay;
-- upstream provider keys such as Agnes keys to remain inside the Cloud service
-  and outside server Releases, browser code, and user configuration;
 - deployment on an organization's own Linux server or Docker environment.
 
 ## What the public distribution includes
@@ -164,25 +162,107 @@ service. See:
 - [Windows Docker](docs/en/windows-docker.md)
 - [Release mirrors](docs/en/release-mirrors.md)
 
-## Server configuration
+## Register for Cloud and install the server
 
-Access to the Cloud AI relay requires at least:
+### 1. Register a DataMind Cloud account
+
+Open the hosted DataMind Cloud website:
 
 ```text
-DATAMIND_CLOUD_API_BASE
-DATAMIND_CLOUD_API_KEY
+https://dm.iter-self.top/
 ```
 
-The installer stores local runtime configuration and generates service
-secrets when needed. A Cloud API key is a server-side credential for reaching
-Cloud and must not be placed in browser code, a public repository, or an
-ordinary user's client configuration.
+In the registration form, provide:
+
+- a real mailbox that can currently receive mail;
+- a login password with at least 8 characters.
+
+After a successful registration, the page returns:
+
+- the account email and account ID;
+- a free Cloud API key in the form `dm_free_...`;
+- `keyKind: free`;
+- the current free plan and usage information.
+
+The free key is used by the Go service to access the Cloud AI relay. Copy it
+after registration and store it securely. The mailbox address must be correct
+because it may be needed for future login, account management, or service
+notifications.
+
+The registration email and password are only for signing in to Cloud; they
+cannot replace the Cloud API key. An upstream Agnes API key is an internal
+Cloud provider credential and must not be used to install DataMind Server.
+
+### 2. Use the free key to install the server
+
+On a Linux server, run:
+
+```bash
+{ curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
+  curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
+  sudo DATAMIND_GO_VERSION=v0.1.2 bash
+```
+
+When the installer displays:
+
+```text
+请输入 DataMind API Key：
+```
+
+Paste the `dm_free_...` key returned after registration. Input is hidden.
+The installer stores the key in the server-side configuration with restricted
+permissions; you do not need to edit `/opt/datamind-go` manually.
+
+On Windows, install and start Docker Desktop, then run this command in
+PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
+```
+
+The Windows installer securely asks for the same DataMind Cloud API key. After
+installation, the default local endpoint is:
+
+```text
+http://127.0.0.1:3001
+```
+
+### 3. Use environment variables for non-interactive installation
+
+Automated deployments can provide:
+
+```bash
+export DATAMIND_CLOUD_API_BASE=https://dm.iter-self.top/v1
+export DATAMIND_CLOUD_API_KEY='dm_free_...'
+```
+
+Then run the local installer:
+
+```bash
+sudo -E DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+An API key in an environment variable may enter shell history or automation
+logs. Prefer the interactive prompt for ordinary installations and clear the
+environment variable after deployment.
+
+### 4. Verify the plan and usage
+
+After installation, use the Go CLI to inspect the profile, plan, and usage:
+
+```bash
+datamind cloud auth add --name free --key '<your-dm-free-key>'
+datamind cloud auth use --name free
+datamind cloud auth list
+datamind cloud plan --base-url https://dm.iter-self.top
+datamind cloud usage --base-url https://dm.iter-self.top
+```
+
+`auth list` prints masked keys only. When membership is enabled, the website
+will issue a separate member key; save it as another profile and switch
+profiles without changing the server program.
 
 ## Release process
-
-Server Release assets are built locally in a private source repository and
-uploaded manually. This repository does not run cross-repository GitHub
-Actions and does not store a publishing token.
 
 Each Release includes:
 

@@ -87,8 +87,6 @@ DataMind 适合以下安全诉求：
 - 管理员可以集中维护用户、角色、数据源和授权关系；
 - AI 使用的是服务端提供的受控能力，而不是完整数据库超级权限；
 - Cloud API Key 只保存在 Go 服务侧，用于服务访问 Cloud AI 中转；
-- Agnes 等上游提供商的原始 Key 只由 Cloud 服务内部管理，不进入服务端
-  Release、浏览器或用户配置；
 - 服务端可以部署在企业自己的 Linux 服务器或 Docker 环境中。
 
 ## 公开发行版包含什么
@@ -141,23 +139,103 @@ http://127.0.0.1:3001
 - [Windows Docker](docs/zh-CN/windows-docker.md)
 - [Release 镜像](docs/zh-CN/release-mirrors.md)
 
-## 服务端配置
+## 注册 Cloud 账号并安装服务
 
-服务端访问 Cloud AI 中转至少需要：
+### 1. 注册 DataMind Cloud 账号
+
+打开 DataMind Cloud 网站：
 
 ```text
-DATAMIND_CLOUD_API_BASE
-DATAMIND_CLOUD_API_KEY
+https://dm.iter-self.top/
 ```
 
-安装脚本会保存本地运行所需的配置，并在需要时生成服务端运行密钥。
-Cloud API Key 只用于 Go 服务访问 Cloud，不要放入浏览器代码、公开仓库
-或普通用户的客户端配置。
+在“注册”区域填写：
+
+- 一个真实、当前可以正常收信的邮箱地址；
+- 一个至少 8 位的登录密码。
+
+注册成功后，网页会返回以下信息：
+
+- 账号邮箱和账号 ID；
+- `dm_free_...` 形式的免费 Cloud API Key；
+- `keyKind: free`；
+- 当前免费套餐和用量信息。
+
+当前免费 Key 用于 Go 服务访问 Cloud AI 中转。请在注册成功后立即复制
+并安全保存 Key。邮箱地址必须准确，否则后续登录、账号管理或服务通知
+可能无法正常使用。
+
+注意：注册邮箱和密码只用于登录 Cloud 网站，不能代替 Cloud API Key。
+Agnes 上游 API Key 属于 Cloud 内部资源，也不能用于安装 DataMind Server。
+
+### 2. 使用免费 Key 安装服务
+
+Linux 服务器执行：
+
+```bash
+{ curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
+  curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
+  sudo DATAMIND_GO_VERSION=v0.1.2 bash
+```
+
+安装过程中出现以下提示时：
+
+```text
+请输入 DataMind API Key：
+```
+
+粘贴注册成功后获得的 `dm_free_...` Key，输入过程不会回显。安装脚本会
+把 Key 保存到服务端受限权限配置中，不需要手工编辑 `/opt/datamind-go`
+配置文件。
+
+Windows 用户先安装并启动 Docker Desktop，然后在 PowerShell 执行：
+
+```powershell
+irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
+```
+
+Windows 安装器同样会安全询问 DataMind Cloud API Key。安装完成后，服务
+默认访问地址为：
+
+```text
+http://127.0.0.1:3001
+```
+
+### 3. 非交互安装时使用环境变量
+
+自动化部署可以提前设置以下变量：
+
+```bash
+export DATAMIND_CLOUD_API_BASE=https://dm.iter-self.top/v1
+export DATAMIND_CLOUD_API_KEY='dm_free_...'
+```
+
+然后执行本地安装脚本：
+
+```bash
+sudo -E DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+环境变量中的 Key 可能进入 Shell 历史或自动化日志。普通安装建议直接
+让安装器交互式询问，部署完成后及时清理环境变量。
+
+### 4. 验证套餐和用量
+
+安装完成后，可以使用 Go CLI 检查当前 Key 对应的套餐和用量：
+
+```bash
+datamind cloud auth add --name free --key '<your-dm-free-key>'
+datamind cloud auth use --name free
+datamind cloud auth list
+datamind cloud plan --base-url https://dm.iter-self.top
+datamind cloud usage --base-url https://dm.iter-self.top
+```
+
+`auth list` 只显示脱敏 Key。会员功能启用后，网站会为会员账号提供
+独立的会员 Key；届时可以使用另一个 profile 保存并切换，不需要修改
+服务程序。
 
 ## 发布说明
-
-服务端 Release 资产由私有源码仓库本地构建后手动上传。本仓库不运行跨
-仓库 GitHub Actions，也不保存发布 Token。
 
 每个 Release 都包含：
 
