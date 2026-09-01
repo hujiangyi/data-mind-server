@@ -24,7 +24,7 @@ Release 中附带的 EULA 为准。
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.1 bash
+  sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
 脚本会根据服务器架构选择 Linux AMD64 或 ARM64，探测 Gitee 和 GitHub

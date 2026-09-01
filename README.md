@@ -26,7 +26,7 @@ Install a compiled Go server distribution:
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.1 bash
+  sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
 The installer selects Linux AMD64 or ARM64, probes the Gitee and GitHub

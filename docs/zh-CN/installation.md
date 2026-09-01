@@ -49,7 +49,7 @@ Linux 服务器可以将已经编译好的 Go 服务安装为 systemd 服务：
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.1 bash
+  sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
 脚本支持 Linux AMD64 和 ARM64，会校验 Release 文件、询问 DataMind

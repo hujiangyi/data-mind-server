@@ -52,7 +52,7 @@ Install the compiled Linux Go service as a systemd service:
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.1 bash
+  sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
 The script supports Linux AMD64 and ARM64, automatically probes the Gitee and

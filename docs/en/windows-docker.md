@@ -38,14 +38,14 @@ http://127.0.0.1:3001
 To install a specific release:
 
 ```powershell
-& .\install-go.ps1 -Version v0.1.1
+& .\install-go.ps1 -Version v0.1.2
 ```
 
 The installer probes Gitee first and GitHub second. Override the behavior when
 needed:
 
 ```powershell
-& .\install-go.ps1 -Version v0.1.1 -ReleaseSource gitee
+& .\install-go.ps1 -Version v0.1.2 -ReleaseSource gitee
 ```
 
 The environment variables `DATAMIND_RELEASE_SOURCE` and
