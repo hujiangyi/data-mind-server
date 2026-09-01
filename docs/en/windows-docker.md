@@ -77,5 +77,5 @@ Remove the container and local data:
 & .\uninstall-go.ps1 -PurgeData
 ```
 
-The Docker container uses the original Go-to-cloud API contract. The MCP
-client-to-Go protocol is unchanged.
+The Docker container uses the same Go-to-Cloud API contract as the native
+Linux installation.

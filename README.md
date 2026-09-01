@@ -1,27 +1,132 @@
 # DataMind Server
 
 DataMind Server is the public distribution and deployment repository for the
-DataMind Go/Vue service.
+DataMind Go/Vue data platform. It is designed for small and medium-sized teams
+and enterprises that need to connect scattered business data, manage access
+by business scope, and use AI without handing unrestricted database privileges
+to an AI system.
 
-This repository contains:
+This repository contains compiled server distributions, the Vue web
+application embedded in those distributions, Docker runtime bundles,
+installation scripts, and Nginx deployment templates. It does **not** contain
+the closed-source DataMind Go, Vue, or Cloud source code. Server binaries are
+built in a private source repository and manually uploaded to Releases. The
+EULA attached to each Release defines the permitted use of the binaries.
+
+## The problem DataMind solves
+
+Business data is often spread across CRM, orders, inventory, finance, support,
+project management, and internal operations systems. The data may also live in
+multiple MySQL, PostgreSQL, or other databases. Teams then face a familiar
+set of problems:
+
+- Data is fragmented across systems, so cross-system reporting depends on
+  manual exports.
+- The same customer, order, product, or project is difficult to relate across
+  separate applications.
+- Giving an AI a database account creates an unnecessarily broad permission
+  boundary and can expose unrelated data or allow out-of-scope queries.
+- Refusing AI access altogether prevents teams from using AI for retrieval,
+  schema understanding, operational analysis, and routine data management.
+- Administrators need to assign access by department, role, business line,
+  data source, and business scope while keeping an auditable trail.
+
+DataMind is a **controlled data platform and AI data-access boundary**. It does
+not require a team to migrate every existing system into a new database on
+day one. Instead, it provides a unified service for connecting existing data
+sources, managing metadata, exposing query entrypoints, applying user
+permissions, and retaining operational audit information.
+
+## Typical use cases
+
+### One data entrypoint for a growing team
+
+When sales, operations, warehouse, and finance use different systems, the team
+can connect those sources to DataMind and use one administration surface to
+inspect connection status, databases, and table structures. Users can organize
+and query data only within their assigned business scope.
+
+For example, a sales lead can relate customers to orders, an operations user
+can inspect orders and inventory, and a finance user can reconcile payments
+against financial records without receiving access to every department's data.
+
+### Multi-system data management for enterprises
+
+For organizations with multiple applications, departments, or tenants,
+DataMind acts as a consistent data-access layer. Existing business systems can
+keep their current storage and operational model while DataMind provides a
+central place to manage data sources, metadata, and authorization boundaries.
+
+Common relationships include:
+
+- customers, contacts, and sales opportunities;
+- orders, products, inventory, and logistics;
+- payments, invoices, contracts, and customer entities;
+- support tickets, service records, and product issues;
+- projects, members, cost, and delivery progress.
+
+### AI-assisted data management
+
+Teams can use AI to understand schemas, locate business data, draft query
+intent, summarize results, and identify anomalies while keeping actual data
+access under server-side control. The AI does not need a production database
+account or a database administrator privilege.
+
+Each request is checked by the DataMind service against the current identity,
+role, data-source permissions, and business scope before a controlled
+connection executes it. This gives teams a practical balance between wanting
+AI to manage data and refusing to give AI unrestricted access to the whole
+database.
+
+## How it works
+
+1. **Connect existing sources.** Administrators configure business databases
+   without requiring a change to the source systems' storage model.
+2. **Provide a unified data view.** The web application exposes data sources,
+   databases, tables, and metadata through one service.
+3. **Assign permissions by scope.** Access can be separated by user,
+   organization, role, business line, data source, database, table, and
+   business scope.
+4. **Execute through the server.** The Go service opens the data connection and
+   performs authorization checks instead of handing production credentials to
+   an AI system or an ordinary user.
+5. **Constrain returned data.** The service applies the current user's
+   authorized scope so that changing client parameters cannot grant access to
+   unrelated data.
+6. **Retain operational evidence.** Key access results, states, and runtime
+   information remain available for troubleshooting, review, and governance.
+
+## Security boundaries
+
+DataMind is intended for deployments that need:
+
+- ordinary users to see only assigned data sources and business scopes;
+- administrators to manage users, roles, data sources, and authorization
+  relationships centrally;
+- AI to use controlled server capabilities instead of a database superuser
+  account;
+- Cloud API keys to remain on the Go service for access to the Cloud AI relay;
+- upstream provider keys such as Agnes keys to remain inside the Cloud service
+  and outside server Releases, browser code, and user configuration;
+- deployment on an organization's own Linux server or Docker environment.
+
+## What the public distribution includes
 
 - Linux AMD64 and ARM64 installers;
-- a Windows Docker installer;
+- macOS AMD64 and ARM64 Go server and CLI binaries;
+- Linux AMD64 and ARM64 Go server and CLI binaries;
+- Linux Docker bundles for Windows Docker Desktop;
 - Docker Compose and runtime templates;
-- Nginx deployment examples;
-- server Releases, checksums, and compatibility notes;
-- English and Simplified Chinese deployment documentation.
-
-This repository does **not** contain the closed-source DataMind Go, Vue, or
-Cloud source code. Server binaries are built in a private source repository
-and manually uploaded to Releases here. The EULA attached to each Release
-defines the permitted use of the binaries.
+- Nginx reverse-proxy deployment examples;
+- Release checksums and compatibility notes;
+- English and Simplified Chinese installation, deployment, and troubleshooting
+  documentation.
 
 ## Choose an installation method
 
 ### Linux server
 
-Install a compiled Go server distribution:
+Install a compiled Go/Vue server distribution:
 
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
@@ -31,18 +136,20 @@ Install a compiled Go server distribution:
 
 The installer selects Linux AMD64 or ARM64, probes the Gitee and GitHub
 Release mirrors, asks for the DataMind Cloud API key, and creates the
-`datamind-go.service` systemd service.
+`datamind-go.service` systemd service. The service listens on
+`127.0.0.1:3001` by default and serves both the Vue website and server APIs.
 
 ### Windows
 
-Windows does not use a native Go binary. Install and start Docker Desktop, then
-run this command in PowerShell:
+Windows does not receive a native Go executable. Install and start Docker
+Desktop, then run this command in PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
 ```
 
-The installer runs the precompiled Linux Go Docker distribution and exposes:
+The installer downloads the precompiled Linux Docker distribution and exposes
+the service locally at:
 
 ```text
 http://127.0.0.1:3001
@@ -57,57 +164,32 @@ service. See:
 - [Windows Docker](docs/en/windows-docker.md)
 - [Release mirrors](docs/en/release-mirrors.md)
 
-### API keys and protocol
-
-Server-side authorization and protocol boundaries are documented here:
-
-- [Cloud API keys](docs/en/api-key.md)
-- [MCP and Cloud protocol boundaries](docs/en/protocol.md)
-
 ## Server configuration
 
-The server requires separate configuration for:
+Access to the Cloud AI relay requires at least:
 
 ```text
 DATAMIND_CLOUD_API_BASE
 DATAMIND_CLOUD_API_KEY
-DAAS_MCP_MASTER_KEY
-DAAS_MCP_SETUP_BASE_URL
-DAAS_MCP_PUBLIC_API_BASE
 ```
 
-`DATAMIND_CLOUD_API_BASE` and `DATAMIND_CLOUD_API_KEY` connect the Go service
-to DataMind Cloud. `DAAS_MCP_SETUP_BASE_URL` is the installation page included
-in user emails. `DAAS_MCP_PUBLIC_API_BASE` is the Go service address used by
-MCP clients. The Agnes API key is managed only inside the Cloud service and is
-never part of server installation parameters.
-
-For a remote deployment, set the public Go address before installation:
-
-```bash
-DAAS_MCP_PUBLIC_API_BASE=https://go.example.com \
-DAAS_MCP_SETUP_BASE_URL=https://go.example.com \
-sudo -E bash install/install-go.sh
-```
+The installer stores local runtime configuration and generates service
+secrets when needed. A Cloud API key is a server-side credential for reaching
+Cloud and must not be placed in browser code, a public repository, or an
+ordinary user's client configuration.
 
 ## Release process
 
-Server Release assets are built in a private source repository and uploaded
-manually. This repository does not run cross-repository GitHub Actions and does
-not store a publishing token.
+Server Release assets are built locally in a private source repository and
+uploaded manually. This repository does not run cross-repository GitHub
+Actions and does not store a publishing token.
 
-Before publishing, verify:
+Each Release includes:
 
-```text
-Release assets exist
-checksums.txt is correct
-Linux AMD64 installation succeeds
-Linux ARM64 installation succeeds
-Windows Docker installation succeeds
-the Go health check succeeds
-the Vue home page is reachable
-MCP connects to the Go service
-```
+- platform-specific server and CLI binaries;
+- Windows Docker distributions;
+- `checksums.txt`;
+- a Release manifest and licensing documents.
 
 ## License
 

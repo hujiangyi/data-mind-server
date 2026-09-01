@@ -1,53 +1,22 @@
 # Installation
 
-The installer configures the MCP client for an existing DataMind Go service.
-It does not create or replace MCP credentials.
+This document explains how to install the precompiled DataMind Go/Vue server.
+The distribution serves the web administration page and server APIs from the
+same service.
 
-For a Go service with email delivery enabled, register in the Go web interface
-with a real mailbox first. The service sends the MCP installation parameters to
-that mailbox and keeps them out of the HTTP registration response. For an
-existing private deployment, an administrator may issue the credential pair
-instead.
+## Requirements
 
-Required values:
+- Linux AMD64 or ARM64 for a native systemd installation, or Windows with
+  Docker Desktop Linux containers;
+- permission to install a system service or run Docker;
+- a DataMind Cloud API key for the server-to-Cloud AI connection;
+- a reachable port, with `3001` used by default.
 
-- `--tool`
-- `--api-base`
-- `--credential`
-- `--master-key`
+## Linux server
 
-Supported tools:
-
-`claude-desktop`, `claude-code`, `cursor`, `vscode`, `opencode`, and
-`continue`.
-
-The installer downloads a versioned MCP release asset, writes the existing
-MCP environment variables, and marks the credential as used on the Go
-service. It never writes a cloud API key.
-
-After installation, configure the Go service separately:
-
-```bash
-datamind cloud auth add --name free --key "$DATAMIND_FREE_KEY"
-datamind cloud auth use --name free
-```
-
-## Windows Go service
-
-Windows does not use a native Go executable. Use Docker Desktop Linux
-containers and the dedicated installer:
-
-```powershell
-irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
-```
-
-The installer downloads the matching Linux Docker bundle, asks for the
-DataMind Cloud API Key, and starts the service at `http://127.0.0.1:3001`.
-See [Windows Docker](windows-docker.md) for upgrades and data management.
-
-## Linux Go service
-
-Install the compiled Linux Go service as a systemd service:
+Run the bootstrap command as root. It selects the matching architecture,
+probes the Gitee and GitHub Release mirrors, verifies the downloaded checksum,
+asks for the DataMind Cloud API key, and creates `datamind-go.service`:
 
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
@@ -55,23 +24,88 @@ Install the compiled Linux Go service as a systemd service:
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-The script supports Linux AMD64 and ARM64, automatically probes the Gitee and
-GitHub Release mirrors, verifies the Release checksum, asks for the DataMind
-Cloud API Key, and starts `datamind-go.service` on `127.0.0.1:3001`. It does
-not change Nginx configuration.
+The service listens on `127.0.0.1:3001` by default and serves both the Vue
+website and server APIs.
 
-For a remote deployment, set the public Go address before running the installer:
+To choose a release mirror explicitly:
 
 ```bash
-export DAAS_MCP_PUBLIC_API_BASE=https://go.example.com
-export DAAS_MCP_SETUP_BASE_URL=https://go.example.com
+export DATAMIND_RELEASE_SOURCE=gitee
 ```
 
-See [Release mirrors](release-mirrors.md) for source selection variables.
+Use `github`, `gitee`, or `auto`. The default `auto` mode checks reachability
+and selects an available Release source.
+
+## Windows with Docker Desktop
+
+Windows does not use a native Go executable. Install and start Docker Desktop
+with Linux Containers enabled, then run this command in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
+```
+
+The installer selects the matching Linux Docker bundle, asks for the Cloud API
+key, and starts the service at:
+
+```text
+http://127.0.0.1:3001
+```
+
+To install an explicit version:
+
+```powershell
+& .\install-go.ps1 -Version v0.1.2
+```
+
+The Windows installation does not require Go, MinGW, or a native Windows Go
+build.
+
+## Cloud configuration
+
+The Go service needs these server-side values to use the Cloud AI relay:
+
+```text
+DATAMIND_CLOUD_API_BASE
+DATAMIND_CLOUD_API_KEY
+```
+
+The installer asks for the key without echoing it and stores the local
+configuration with restricted permissions. Do not put the key into browser
+code, release archives, Docker images, or public issue reports.
+
+## Public domain and Nginx
+
+The service can run directly on port `3001`. For a public domain and HTTPS,
+configure Nginx to proxy the domain to `127.0.0.1:3001`:
+
+```text
+https://data.example.com -> Nginx :443 -> DataMind Server :3001
+```
+
+See [Nginx deployment](nginx.md) for the reverse-proxy template. Keep the Go
+service bound to loopback or the private container network when Nginx is used.
+
+## Data and upgrades
+
+The installer keeps runtime configuration and local SQLite data outside the
+versioned binary files. Re-running the installer with a newer Release updates
+the service while preserving the local data directory.
+
+Stop and remove a Linux installation:
+
+```bash
+sudo systemctl disable --now datamind-go.service
+sudo rm -f /etc/systemd/system/datamind-go.service
+sudo systemctl daemon-reload
+```
+
+For Windows, use the matching `uninstall-go.ps1` script. Without the purge
+option it removes the container while preserving local data.
 
 ## Related documentation
 
 - [Cloud API keys](api-key.md)
-- [MCP and Cloud protocol boundaries](protocol.md)
 - [Nginx deployment](nginx.md)
+- [Release mirrors](release-mirrors.md)
 - [Troubleshooting](troubleshooting.md)

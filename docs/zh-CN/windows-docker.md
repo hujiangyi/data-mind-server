@@ -74,5 +74,4 @@ Windows 用户不需要安装 Go、MinGW，也不需要 Windows 原生 Go 二进
 & .\uninstall-go.ps1 -PurgeData
 ```
 
-Docker 容器继续使用原有的 Go 到云端 API 协议，MCP 客户端到 Go 服务之间
-的协议保持不变。
+Docker 容器继续使用与 Linux 原生安装相同的 Go 到 Cloud API 契约。
