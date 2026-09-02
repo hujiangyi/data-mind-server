@@ -109,7 +109,7 @@ DataMind 适合以下安全诉求：
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.2 bash
+  sudo DATAMIND_GO_VERSION=v0.1.3 bash
 ```
 
 脚本会先检查系统依赖、外部网络、可用下载源和 `3001` 端口，再根据服务器
@@ -177,7 +177,7 @@ Linux 服务器执行：
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.2 bash
+  sudo DATAMIND_GO_VERSION=v0.1.3 bash
 ```
 
 Windows 用户先安装并启动 Docker Desktop，然后在 PowerShell 执行：
@@ -242,7 +242,7 @@ export DATAMIND_CLOUD_API_KEY='dm_free_...'
 然后执行本地安装脚本：
 
 ```bash
-sudo -E DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+sudo -E DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
 ```
 
 环境变量中的 Key 可能进入 Shell 历史或自动化日志。普通安装建议直接

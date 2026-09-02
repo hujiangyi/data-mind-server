@@ -40,12 +40,12 @@ Release 源。如果检查失败，脚本会直接退出，不会继续等待。
 能解析并访问 HTTPS；仍然失败时，再根据网络环境选择直连或代理：
 
 ```bash
-sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
 ```
 
 ```bash
 sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
-  DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+  DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
 ```
 
 如果 Cloud AI 检查通过但 Release 源不可用，可以设置

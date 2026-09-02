@@ -129,7 +129,7 @@ Install a compiled Go/Vue server distribution:
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.2 bash
+  sudo DATAMIND_GO_VERSION=v0.1.3 bash
 ```
 
 The installer first checks system dependencies, external network access, a usable
@@ -203,7 +203,7 @@ On a Linux server, run:
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.2 bash
+  sudo DATAMIND_GO_VERSION=v0.1.3 bash
 ```
 
 On Windows, install and start Docker Desktop, then run:
@@ -272,7 +272,7 @@ export DATAMIND_CLOUD_API_KEY='dm_free_...'
 Then run the local installer:
 
 ```bash
-sudo -E DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+sudo -E DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
 ```
 
 An API key in an environment variable may enter shell history or automation

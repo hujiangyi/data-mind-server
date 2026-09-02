@@ -23,7 +23,7 @@ Vue 管理页面和服务端 API。
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.2 bash
+  sudo DATAMIND_GO_VERSION=v0.1.3 bash
 ```
 
 服务默认监听 `0.0.0.0:3001`，同时提供 Vue 网站和服务端 API。安装前会
@@ -42,14 +42,14 @@ export DATAMIND_RELEASE_SOURCE=gitee
 如果服务器配置了无法访问外网的代理，也可以显式指定直连：
 
 ```bash
-sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
 ```
 
 如果服务器必须经过指定代理，可以设置：
 
 ```bash
 sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
-  DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+  DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
 ```
 
 网络检查失败时，脚本会在下载二进制前直接退出，不会继续等待后续安装。
@@ -74,7 +74,7 @@ http://127.0.0.1:3001
 安装指定版本：
 
 ```powershell
-& .\install-go.ps1 -Version v0.1.2
+& .\install-go.ps1 -Version v0.1.3
 ```
 
 Windows 安装不需要 Go、MinGW 或 Windows 原生 Go 构建环境。

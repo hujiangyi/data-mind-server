@@ -65,7 +65,7 @@ Linux 一键命令可以先选择可访问的 raw 脚本源：
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.2 bash
+  sudo DATAMIND_GO_VERSION=v0.1.3 bash
 ```
 
 脚本启动后还会独立探测可访问的 Release 下载源。
