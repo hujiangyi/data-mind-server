@@ -112,11 +112,11 @@ DataMind 适合以下安全诉求：
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-脚本会根据服务器架构选择 Linux AMD64 或 ARM64，探测 Gitee 和 GitHub
-Release 镜像。如果没有现成的 DataMind Cloud API Key，脚本会引导填写
-邮箱和 Cloud 登录密码，自动注册免费账号并取得 Key，然后创建
-`datamind-go.service`。服务默认监听 `127.0.0.1:3001`，同时提供 Vue
-网站和服务端 API。
+脚本会先检查 Cloud AI 网络连接，再根据服务器架构选择 Linux AMD64 或
+ARM64，并探测 Gitee 和 GitHub Release 镜像；每个网络探测都会显示进度。
+如果没有现成的 DataMind Cloud API Key，脚本会引导填写邮箱和 Cloud
+登录密码，自动注册免费账号并取得 Key，然后创建 `datamind-go.service`。
+服务默认监听 `127.0.0.1:3001`，同时提供 Vue 网站和服务端 API。
 
 ### Windows
 
@@ -127,7 +127,8 @@ PowerShell 中执行：
 irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
 ```
 
-脚本会下载已经编译好的 Linux Docker 分发包，默认在本机提供：
+脚本会先检查 Cloud AI 网络连接，再下载已经编译好的 Linux Docker 分发包，
+默认在本机提供：
 
 ```text
 http://127.0.0.1:3001

@@ -33,6 +33,30 @@ upstream, DNS record, firewall, TLS certificate, and the configured domain
 name. Nginx should proxy to `127.0.0.1:3001` and should not point to the
 Cloud service's port.
 
+## Installer network check fails
+
+The installer checks the Cloud AI endpoint and a usable Release source before
+downloading the binary or registering an account. If the check fails, it exits
+instead of waiting through the rest of the installation.
+
+The installer first tries the system network path and automatically tries one
+direct connection if it fails. After confirming DNS and HTTPS access from the
+server, choose a direct connection or a proxy:
+
+```bash
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+```bash
+sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
+  DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+If the Cloud AI check passes but a Release source does not, set
+`DATAMIND_RELEASE_SOURCE=gitee` or `DATAMIND_RELEASE_SOURCE=github` to force a
+source. If it still fails, inspect the server firewall, DNS, proxy, and
+outbound port `443`.
+
 ## Cloud AI is unavailable
 
 Run the local diagnostics and inspect the active Cloud profile:

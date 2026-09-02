@@ -17,6 +17,12 @@ API_KEY="${DATAMIND_CLOUD_API_KEY:-}"
 MCP_MASTER_KEY="${DAAS_MCP_MASTER_KEY:-}"
 MCP_SETUP_BASE_URL="${DAAS_MCP_SETUP_BASE_URL:-}"
 MCP_PUBLIC_API_BASE="${DAAS_MCP_PUBLIC_API_BASE:-}"
+CURL_EXTRA_ARGS=()
+if [[ -n "${DATAMIND_CURL_PROXY:-}" ]]; then
+  CURL_EXTRA_ARGS+=(--proxy "$DATAMIND_CURL_PROXY")
+elif [[ "${DATAMIND_CURL_NO_PROXY:-0}" == "1" ]]; then
+  CURL_EXTRA_ARGS+=(--noproxy '*')
+fi
 
 fail() {
   printf '错误：%s\n' "$*" >&2
@@ -51,17 +57,69 @@ probe_release() {
   local base="$1"
   local root
   root="$(release_root_for "$base")"
+  printf '检查 Release 源：%s ... ' "$base"
   if command -v curl >/dev/null 2>&1; then
-    curl --fail --silent --show-error --location --ipv4 --http1.1 \
-      --retry 2 --retry-delay 1 --connect-timeout 5 --max-time 15 \
-      -o /dev/null "$root/checksums.txt"
+    if curl --fail --silent --location --ipv4 --http1.1 \
+        "${CURL_EXTRA_ARGS[@]}" \
+        --connect-timeout 4 --max-time 8 \
+        -o /dev/null "$root/checksums.txt" 2>/dev/null; then
+      printf '可用\n'
+      return 0
+    fi
   else
-    wget --quiet --timeout=5 --tries=2 -O /dev/null "$root/checksums.txt"
+    if wget --quiet --timeout=5 --tries=1 -O /dev/null "$root/checksums.txt"; then
+      printf '可用\n'
+      return 0
+    fi
   fi
+  printf '不可用\n' >&2
+  return 1
+}
+
+check_cloud_network() {
+  local endpoint="${CLOUD_API_BASE%/}/"
+  local status
+
+  printf '安装前检查 Cloud AI 网络连接：%s ... ' "$CLOUD_API_BASE"
+  if command -v curl >/dev/null 2>&1; then
+    if status="$(curl --silent --show-error --location --ipv4 --http1.1 \
+        "${CURL_EXTRA_ARGS[@]}" \
+        --connect-timeout 3 --max-time 8 \
+        -o /dev/null -w '%{http_code}' "$endpoint" 2>/dev/null)" &&
+        [[ "$status" != "000" ]]; then
+      printf '可达（HTTP %s）\n' "$status"
+      return 0
+    fi
+    if [[ -z "${DATAMIND_CURL_PROXY:-}" && "${DATAMIND_CURL_NO_PROXY:-0}" != "1" ]]; then
+      printf '默认路径失败，尝试直连 ... '
+      if status="$(curl --silent --show-error --location --ipv4 --http1.1 \
+          --noproxy '*' \
+          --connect-timeout 3 --max-time 8 \
+          -o /dev/null -w '%{http_code}' "$endpoint" 2>/dev/null)" &&
+          [[ "$status" != "000" ]]; then
+        CURL_EXTRA_ARGS+=(--noproxy '*')
+        printf '成功（HTTP %s）\n' "$status"
+        return 0
+      fi
+    fi
+    printf '失败\n' >&2
+    printf '提示：如需直连可设置 DATAMIND_CURL_NO_PROXY=1；如需代理可设置 DATAMIND_CURL_PROXY。\n' >&2
+    fail "无法连接 Cloud AI，请先检查 DNS、HTTPS、防火墙或代理设置"
+  fi
+
+  if wget --quiet --timeout=5 --tries=1 -O /dev/null "$endpoint"; then
+    printf '可达\n'
+    return 0
+  fi
+  printf '失败\n' >&2
+  fail "无法连接 Cloud AI，请先检查 DNS、HTTPS、防火墙或代理设置"
 }
 
 select_release_base() {
   if [[ -n "$RELEASE_BASE" ]]; then
+    if ! probe_release "$RELEASE_BASE"; then
+      fail "指定的 Release 源不可达：$RELEASE_BASE"
+    fi
     printf '使用指定 Release 源：%s\n' "$RELEASE_BASE"
     return 0
   fi
@@ -82,7 +140,7 @@ select_release_base() {
         else
           candidate="$GITHUB_RELEASE_BASE"
         fi
-        if probe_release "$candidate" >/dev/null 2>&1; then
+        if probe_release "$candidate"; then
           RELEASE_BASE="$candidate"
           printf '自动选择 Release 源：%s (%s)\n' "$source" "$RELEASE_BASE"
           return 0
@@ -94,6 +152,9 @@ select_release_base() {
       fail "DATAMIND_RELEASE_SOURCE 必须是 auto、github 或 gitee"
       ;;
   esac
+  if ! probe_release "$RELEASE_BASE"; then
+    fail "指定的 Release 源不可达：$RELEASE_BASE"
+  fi
   printf '使用 Release 源：%s\n' "$RELEASE_BASE"
 }
 
@@ -105,6 +166,7 @@ download() {
       download_ranges_with_curl "$url" "$destination"
     else
       curl --fail --silent --show-error --location --ipv4 --http1.1 \
+        "${CURL_EXTRA_ARGS[@]}" \
         --retry 6 --retry-delay 3 --retry-connrefused --retry-all-errors \
         --connect-timeout 15 --max-time 120 -o "$destination" "$url"
     fi
@@ -128,6 +190,7 @@ download_ranges_with_curl() {
   local chunk_size=$((1024 * 1024))
 
   curl --fail --silent --show-error --location --ipv4 --http1.1 \
+    "${CURL_EXTRA_ARGS[@]}" \
     --retry 6 --retry-delay 3 --retry-connrefused --retry-all-errors \
     --connect-timeout 15 --max-time 90 \
     --range 0-0 -D "$headers" -o "$probe" "$url"
@@ -163,6 +226,7 @@ download_ranges_with_curl() {
     expected_size=$((end - offset + 1))
     printf '下载分段：%s-%s/%s\n' "$offset" "$end" "$total"
     curl --fail --silent --show-error --location --ipv4 --http1.1 \
+      "${CURL_EXTRA_ARGS[@]}" \
       --retry 6 --retry-delay 3 --retry-connrefused --retry-all-errors \
       --connect-timeout 15 --max-time 90 \
       --range "$offset-$end" -o "$part" "$url"
@@ -275,6 +339,7 @@ register_free_cloud_key() {
   payload="$(printf '{"email":"%s","password":"%s"}' "$(json_escape "$email")" "$(json_escape "$password")")"
   response_file="$(mktemp "${TMPDIR:-/tmp}/datamind-cloud-register.XXXXXX")"
   if ! status="$(printf '%s' "$payload" | curl --silent --show-error --location --ipv4 --http1.1 \
+      "${CURL_EXTRA_ARGS[@]}" \
       --retry 2 --retry-delay 1 --connect-timeout 10 --max-time 30 \
       -H 'content-type: application/json' \
       --data-binary @- -o "$response_file" -w '%{http_code}' "$register_url")"; then
@@ -388,6 +453,7 @@ case "$(uname -m)" in
 esac
 
 ASSET="datamind-go-linux-$ARCH.tar.gz"
+check_cloud_network
 select_release_base
 
 ENV_FILE="$INSTALL_DIR/.env"

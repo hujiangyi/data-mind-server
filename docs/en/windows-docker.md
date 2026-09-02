@@ -28,9 +28,10 @@ Windows ARM64 -> Linux ARM64
 
 It downloads a versioned Docker bundle containing the compiled Linux Go
 binary, runtime Dockerfile, Compose file, configuration template, and
-migrations. If no DataMind Cloud API key is available, it guides the user
-through mailbox/password registration, obtains a free key, and starts the
-local container. The menu also supports entering an existing key.
+migrations. The installer checks Cloud AI connectivity before downloading. If
+no DataMind Cloud API key is available, it guides the user through
+mailbox/password registration, obtains a free key, and starts the local
+container. The menu also supports entering an existing key.
 
 The default endpoint is:
 

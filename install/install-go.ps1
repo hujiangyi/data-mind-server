@@ -212,13 +212,42 @@ function Get-ReleaseRoot([string]$Base, [string]$ReleaseVersion) {
 }
 
 function Test-ReleaseSource([string]$Base, [string]$ReleaseVersion) {
+    Write-Host "检查 Release 源：$Base ..." -NoNewline
     try {
         $root = Get-ReleaseRoot $Base $ReleaseVersion
-        Invoke-WebRequest -Uri "$root/checksums.txt" -UseBasicParsing -TimeoutSec 12 | Out-Null
+        Invoke-WebRequest -Uri "$root/checksums.txt" -UseBasicParsing -TimeoutSec 8 | Out-Null
+        Write-Host " 可用"
         return $true
     }
     catch {
+        Write-Host " 不可用" -ForegroundColor Yellow
         return $false
+    }
+}
+
+function Test-CloudNetwork() {
+    Write-Host "安装前检查 Cloud AI 网络连接：$CloudApiBase ..." -NoNewline
+    try {
+        $response = Invoke-WebRequest `
+            -Uri "$($CloudApiBase.TrimEnd('/'))/" `
+            -UseBasicParsing `
+            -TimeoutSec 8
+        Write-Host " 可达（HTTP $($response.StatusCode)）"
+        return
+    }
+    catch {
+        if ($_.Exception.Response) {
+            try {
+                $statusCode = [int]$_.Exception.Response.StatusCode
+                Write-Host " 可达（HTTP $statusCode）"
+                return
+            }
+            catch {
+            }
+        }
+        Write-Host " 失败" -ForegroundColor Yellow
+        Write-Host "提示：请检查 DNS、HTTPS、防火墙或代理设置。" -ForegroundColor Yellow
+        Fail "无法连接 Cloud AI"
     }
 }
 
@@ -244,6 +273,9 @@ function Select-ReleaseBase() {
                 Fail "Gitee 和 GitHub Release 源均不可达；请设置 DATAMIND_RELEASE_BASE 指定镜像地址"
             }
         }
+    }
+    if (-not (Test-ReleaseSource $ReleaseBase $Version)) {
+        Fail "指定的 Release 源不可达：$ReleaseBase"
     }
     Write-Host "使用 Release 源：$ReleaseBase"
 }
@@ -284,6 +316,7 @@ if ($CloudApiBase -notmatch "^https?://\S+$") {
     Fail "-CloudApiBase 必须是 HTTP 或 HTTPS 地址"
 }
 
+Test-CloudNetwork
 Select-ReleaseBase
 
 $temporaryRoot = Join-Path $env:TEMP "datamind-go-$([guid]::NewGuid().ToString('N'))"

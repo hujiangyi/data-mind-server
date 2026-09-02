@@ -132,10 +132,11 @@ Install a compiled Go/Vue server distribution:
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-The installer selects Linux AMD64 or ARM64 and probes the Gitee and GitHub
-Release mirrors. If no DataMind Cloud API key is already available, it guides
-the user through an email/password registration, obtains a free key, and then
-creates the `datamind-go.service` systemd service. The service listens on
+The installer first checks Cloud AI connectivity, then selects Linux AMD64 or
+ARM64 and probes the Gitee and GitHub Release mirrors with visible progress.
+If no DataMind Cloud API key is already available, it guides the user through
+an email/password registration, obtains a free key, and then creates the
+`datamind-go.service` systemd service. The service listens on
 `127.0.0.1:3001` by default and serves both the Vue website and server APIs.
 
 ### Windows

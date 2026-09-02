@@ -15,7 +15,8 @@ Vue 管理页面和服务端 API。
 ## Linux 服务器
 
 使用 root 执行一键命令。脚本会选择匹配的架构，探测 Gitee 和 GitHub
-Release 镜像，校验下载文件，并创建 `datamind-go.service`。如果没有
+Release 镜像，校验下载文件，并创建 `datamind-go.service`。正式下载前
+会先检查 Cloud AI 网络连接，并逐个显示 Release 源的可用状态。如果没有
 现成的 DataMind Cloud API Key，安装器会引导填写邮箱和 Cloud 登录密码，
 自动注册免费账号并取得 Key：
 
@@ -35,6 +36,22 @@ export DATAMIND_RELEASE_SOURCE=gitee
 
 支持 `github`、`gitee` 和 `auto`。默认 `auto` 会检查实际网络可达性，
 选择可用的 Release 下载源。
+
+安装器默认先使用系统网络路径；如果该路径失败，会自动尝试一次直连。
+如果服务器配置了无法访问外网的代理，也可以显式指定直连：
+
+```bash
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+如果服务器必须经过指定代理，可以设置：
+
+```bash
+sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
+  DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+网络检查失败时，脚本会在下载二进制前直接退出，不会继续等待后续安装。
 
 ## Windows 使用 Docker Desktop
 

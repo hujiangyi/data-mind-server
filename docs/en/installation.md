@@ -18,9 +18,10 @@ same service.
 
 Run the bootstrap command as root. It selects the matching architecture,
 probes the Gitee and GitHub Release mirrors, verifies the downloaded checksum,
-creates `datamind-go.service`. When no existing DataMind Cloud API key is
-available, the installer guides the user through email/password registration
-and obtains a free key:
+and creates `datamind-go.service`. Before downloading the binary, it checks
+Cloud AI connectivity and shows the availability of each Release source. When
+no existing DataMind Cloud API key is available, the installer guides the user
+through email/password registration and obtains a free key:
 
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
@@ -39,6 +40,24 @@ export DATAMIND_RELEASE_SOURCE=gitee
 
 Use `github`, `gitee`, or `auto`. The default `auto` mode checks reachability
 and selects an available Release source.
+
+The installer first uses the system network path and automatically tries one
+direct connection if that path fails. If the server has a broken proxy
+configuration, direct mode can also be selected explicitly:
+
+```bash
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+If the server must use a specific proxy, set:
+
+```bash
+sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
+  DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+When the network check fails, the installer exits before downloading the
+binary instead of waiting through the rest of the installation.
 
 ## Windows with Docker Desktop
 

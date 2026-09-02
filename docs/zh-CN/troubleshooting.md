@@ -31,6 +31,27 @@ curl -i http://127.0.0.1:3001/health
 TLS 证书和域名配置。Nginx 应该代理到 `127.0.0.1:3001`，不要指向
 Cloud 服务使用的端口。
 
+## 安装器网络检查失败
+
+安装器会在下载二进制和注册账号前检查 Cloud AI 地址，并检查可用的
+Release 源。如果检查失败，脚本会直接退出，不会继续等待。
+
+安装器会先尝试系统默认网络路径，失败后自动尝试一次直连。先确认服务器
+能解析并访问 HTTPS；仍然失败时，再根据网络环境选择直连或代理：
+
+```bash
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+```bash
+sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
+  DATAMIND_GO_VERSION=v0.1.2 bash ./install/install-go.sh
+```
+
+如果 Cloud AI 检查通过但 Release 源不可用，可以设置
+`DATAMIND_RELEASE_SOURCE=gitee` 或 `DATAMIND_RELEASE_SOURCE=github` 强制
+选择源；仍然失败时检查服务器防火墙、DNS、代理和出站 `443` 端口。
+
 ## Cloud AI 不可用
 
 执行本地诊断并检查当前 Cloud profile：
