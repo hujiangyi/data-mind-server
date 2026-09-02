@@ -9,14 +9,18 @@ same service.
 - Linux AMD64 or ARM64 for a native systemd installation, or Windows with
   Docker Desktop Linux containers;
 - permission to install a system service or run Docker;
-- a DataMind Cloud API key for the server-to-Cloud AI connection;
+- no pre-issued DataMind Cloud API key is required for interactive installation;
+  the installer can register a free account, while non-interactive installation
+  must provide an existing key through the environment;
 - a reachable port, with `3001` used by default.
 
 ## Linux server
 
 Run the bootstrap command as root. It selects the matching architecture,
 probes the Gitee and GitHub Release mirrors, verifies the downloaded checksum,
-asks for the DataMind Cloud API key, and creates `datamind-go.service`:
+creates `datamind-go.service`. When no existing DataMind Cloud API key is
+available, the installer guides the user through email/password registration
+and obtains a free key:
 
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
@@ -45,8 +49,9 @@ with Linux Containers enabled, then run this command in PowerShell:
 irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
 ```
 
-The installer selects the matching Linux Docker bundle, asks for the Cloud API
-key, and starts the service at:
+The installer selects the matching Linux Docker bundle. When no existing Cloud
+API key is available, it guides the user through email/password registration
+and starts the service at:
 
 ```text
 http://127.0.0.1:3001
@@ -61,7 +66,7 @@ To install an explicit version:
 The Windows installation does not require Go, MinGW, or a native Windows Go
 build.
 
-## Cloud configuration
+## Cloud registration and configuration
 
 The Go service needs these server-side values to use the Cloud AI relay:
 
@@ -70,9 +75,38 @@ DATAMIND_CLOUD_API_BASE
 DATAMIND_CLOUD_API_KEY
 ```
 
-The installer asks for the key without echoing it and stores the local
-configuration with restricted permissions. Do not put the key into browser
-code, release archives, Docker images, or public issue reports.
+### Recommended: automatic registration
+
+On the first interactive run, when no key is detected, choose:
+
+```text
+1) 自动注册免费账号并生成 Key（推荐）
+```
+
+Provide a real mailbox that can receive mail and a Cloud login password with
+at least 8 characters. The installer calls the Cloud registration endpoint,
+receives a `dm_free_...` key, and stores it in the restricted local
+configuration. The key is not echoed and is not placed in a release archive
+or Docker image.
+
+If the mailbox is already registered, use another mailbox or return to the
+menu and enter an existing key. You can also register first at
+`https://dm.iter-self.top/` and paste the key shown by the website into the
+installer. The registration password is only for Cloud sign-in and cannot
+replace the API key. An upstream Agnes `cpk_...` key is not a DataMind Cloud
+API key.
+
+### Automated installation
+
+Non-interactive installation requires an administrator to provide:
+
+```text
+DATAMIND_CLOUD_API_BASE
+DATAMIND_CLOUD_API_KEY
+```
+
+The installer stores the key without echoing it. Do not put the key into
+browser code, release archives, Docker images, or public issue reports.
 
 ## Public domain and Nginx
 

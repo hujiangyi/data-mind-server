@@ -9,7 +9,9 @@ users run the Linux build inside Docker Desktop Linux containers.
 - Docker Desktop is using Linux Containers.
 - Docker Compose is available as `docker compose`.
 - The host is Windows AMD64 or Windows ARM64.
-- A DataMind Cloud API Key has been issued for the user.
+- Interactive installation can register a free Cloud account, so a pre-issued
+  DataMind Cloud API key is not required. Automated installation must provide
+  an existing key through the environment.
 
 Run the installer from PowerShell:
 
@@ -26,8 +28,9 @@ Windows ARM64 -> Linux ARM64
 
 It downloads a versioned Docker bundle containing the compiled Linux Go
 binary, runtime Dockerfile, Compose file, configuration template, and
-migrations. It then asks for the DataMind Cloud API Key and starts the local
-container.
+migrations. If no DataMind Cloud API key is available, it guides the user
+through mailbox/password registration, obtains a free key, and starts the
+local container. The menu also supports entering an existing key.
 
 The default endpoint is:
 

@@ -1,7 +1,7 @@
 # DataMind Server
 
 DataMind Server is the public distribution and deployment repository for the
-DataMind Go/Vue data platform. It is designed for small and medium-sized teams
+DataMind data platform. It is designed for small and medium-sized teams
 and enterprises that need to connect scattered business data, manage access
 by business scope, and use AI without handing unrestricted database privileges
 to an AI system.
@@ -132,9 +132,10 @@ Install a compiled Go/Vue server distribution:
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-The installer selects Linux AMD64 or ARM64, probes the Gitee and GitHub
-Release mirrors, asks for the DataMind Cloud API key, and creates the
-`datamind-go.service` systemd service. The service listens on
+The installer selects Linux AMD64 or ARM64 and probes the Gitee and GitHub
+Release mirrors. If no DataMind Cloud API key is already available, it guides
+the user through an email/password registration, obtains a free key, and then
+creates the `datamind-go.service` systemd service. The service listens on
 `127.0.0.1:3001` by default and serves both the Vue website and server APIs.
 
 ### Windows
@@ -164,36 +165,7 @@ service. See:
 
 ## Register for Cloud and install the server
 
-### 1. Register a DataMind Cloud account
-
-Open the hosted DataMind Cloud website:
-
-```text
-https://dm.iter-self.top/
-```
-
-In the registration form, provide:
-
-- a real mailbox that can currently receive mail;
-- a login password with at least 8 characters.
-
-After a successful registration, the page returns:
-
-- the account email and account ID;
-- a free Cloud API key in the form `dm_free_...`;
-- `keyKind: free`;
-- the current free plan and usage information.
-
-The free key is used by the Go service to access the Cloud AI relay. Copy it
-after registration and store it securely. The mailbox address must be correct
-because it may be needed for future login, account management, or service
-notifications.
-
-The registration email and password are only for signing in to Cloud; they
-cannot replace the Cloud API key. An upstream Agnes API key is an internal
-Cloud provider credential and must not be used to install DataMind Server.
-
-### 2. Use the free key to install the server
+### 1. Run the installer and register automatically (recommended)
 
 On a Linux server, run:
 
@@ -203,29 +175,55 @@ On a Linux server, run:
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-When the installer displays:
-
-```text
-请输入 DataMind API Key：
-```
-
-Paste the `dm_free_...` key returned after registration. Input is hidden.
-The installer stores the key in the server-side configuration with restricted
-permissions; you do not need to edit `/opt/datamind-go` manually.
-
-On Windows, install and start Docker Desktop, then run this command in
-PowerShell:
+On Windows, install and start Docker Desktop, then run:
 
 ```powershell
 irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
 ```
 
-The Windows installer securely asks for the same DataMind Cloud API key. After
-installation, the default local endpoint is:
+During a first interactive installation without an existing key, the installer
+shows:
+
+```text
+1) 自动注册免费账号并生成 Key（推荐）
+2) 输入已有 DataMind API Key
+3) 退出安装
+```
+
+Choose `1` and provide:
+
+- a real mailbox that can currently receive mail;
+- a Cloud login password with at least 8 characters, entered twice.
+
+The installer calls the Cloud registration endpoint, obtains a free
+`dm_free_...` DataMind Cloud API key, and stores it in the restricted
+server-side configuration. The key is not echoed in the terminal, and no
+manual editing of `/opt/datamind-go` or the Windows install directory is
+required. After installation, the default local endpoint is:
 
 ```text
 http://127.0.0.1:3001
 ```
+
+The mailbox must be real and able to receive mail for future Cloud login and
+account management. The registration password is only for Cloud sign-in; it
+cannot replace the API key. An upstream Agnes `cpk_...` key is an internal
+Cloud provider credential and must not be used to install DataMind Server.
+
+### 2. Existing account or web registration
+
+If the mailbox is already registered, the installer tells the user to try
+another mailbox or return to the menu and enter an existing DataMind Cloud API
+key. As an alternative, open:
+
+```text
+https://dm.iter-self.top/
+```
+
+Complete the registration form with a real mailbox and a password of at least
+8 characters. The page shows the account information, free plan information,
+and the `dm_free_...` key after registration. Choose “输入已有 DataMind API
+Key” in the installer and paste the key; input is hidden.
 
 ### 3. Use environment variables for non-interactive installation
 

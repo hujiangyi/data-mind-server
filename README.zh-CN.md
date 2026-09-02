@@ -1,8 +1,8 @@
 # DataMind Server
 
-DataMind Server 是 DataMind Go/Vue 数据中台服务的公开发行版和部署文档
+DataMind Server 是 DataMind 数据中台服务的公开发行版和部署文档
 仓库。它面向有数据中台需求的中小团队和企业，提供已经编译好的服务端
-程序、Vue 管理页面、Docker 运行包、安装脚本和 Nginx 部署模板。
+程序、管理页面、Docker 运行包、安装脚本和 Nginx 部署模板。
 
 本仓库不包含闭源 DataMind Go、Vue 和 Cloud 源代码。服务端二进制由私有
 源码仓库构建后手动发布到 Release，具体使用范围以每个 Release 附带的
@@ -113,8 +113,10 @@ DataMind 适合以下安全诉求：
 ```
 
 脚本会根据服务器架构选择 Linux AMD64 或 ARM64，探测 Gitee 和 GitHub
-Release 镜像，询问 DataMind Cloud API Key，并创建 `datamind-go.service`。
-服务默认监听 `127.0.0.1:3001`，同时提供 Vue 网站和服务端 API。
+Release 镜像。如果没有现成的 DataMind Cloud API Key，脚本会引导填写
+邮箱和 Cloud 登录密码，自动注册免费账号并取得 Key，然后创建
+`datamind-go.service`。服务默认监听 `127.0.0.1:3001`，同时提供 Vue
+网站和服务端 API。
 
 ### Windows
 
@@ -141,34 +143,7 @@ http://127.0.0.1:3001
 
 ## 注册 Cloud 账号并安装服务
 
-### 1. 注册 DataMind Cloud 账号
-
-打开 DataMind Cloud 网站：
-
-```text
-https://dm.iter-self.top/
-```
-
-在“注册”区域填写：
-
-- 一个真实、当前可以正常收信的邮箱地址；
-- 一个至少 8 位的登录密码。
-
-注册成功后，网页会返回以下信息：
-
-- 账号邮箱和账号 ID；
-- `dm_free_...` 形式的免费 Cloud API Key；
-- `keyKind: free`；
-- 当前免费套餐和用量信息。
-
-当前免费 Key 用于 Go 服务访问 Cloud AI 中转。请在注册成功后立即复制
-并安全保存 Key。邮箱地址必须准确，否则后续登录、账号管理或服务通知
-可能无法正常使用。
-
-注意：注册邮箱和密码只用于登录 Cloud 网站，不能代替 Cloud API Key。
-Agnes 上游 API Key 属于 Cloud 内部资源，也不能用于安装 DataMind Server。
-
-### 2. 使用免费 Key 安装服务
+### 1. 直接运行安装器并自动注册（推荐）
 
 Linux 服务器执行：
 
@@ -178,28 +153,50 @@ Linux 服务器执行：
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-安装过程中出现以下提示时：
-
-```text
-请输入 DataMind API Key：
-```
-
-粘贴注册成功后获得的 `dm_free_...` Key，输入过程不会回显。安装脚本会
-把 Key 保存到服务端受限权限配置中，不需要手工编辑 `/opt/datamind-go`
-配置文件。
-
 Windows 用户先安装并启动 Docker Desktop，然后在 PowerShell 执行：
 
 ```powershell
 irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
 ```
 
-Windows 安装器同样会安全询问 DataMind Cloud API Key。安装完成后，服务
-默认访问地址为：
+首次安装且没有现成 Key 时，脚本会显示以下选择：
+
+```text
+1) 自动注册免费账号并生成 Key（推荐）
+2) 输入已有 DataMind API Key
+3) 退出安装
+```
+
+选择 `1` 后，只需填写：
+
+- 一个真实、当前可以正常收信的邮箱地址；
+- 一个至少 8 位的 Cloud 登录密码，并确认一次。
+
+安装器会通过 Cloud 注册接口自动创建免费账号，取得 `dm_free_...` 形式的
+DataMind Cloud API Key，并把它写入服务端受限权限配置。Key 不会在终端中
+回显，也不需要手工编辑 `/opt/datamind-go` 或 Windows 安装目录中的配置。
+安装完成后，服务默认访问地址为：
 
 ```text
 http://127.0.0.1:3001
 ```
+
+邮箱必须真实且可以正常收信，用于后续账号登录和账号管理。注册密码只
+用于 Cloud 账号登录，不能代替 API Key。Agnes 上游 `cpk_...` Key 属于
+Cloud 内部资源，不能用于安装 DataMind Server。
+
+### 2. 已有账号或网页注册
+
+如果邮箱已经注册，安装器会提示换一个邮箱，或者返回菜单选择
+“输入已有 DataMind API Key”。也可以先打开 DataMind Cloud 网站：
+
+```text
+https://dm.iter-self.top/
+```
+
+在注册区域填写真实邮箱和至少 8 位密码。注册成功后，网页会显示账号信息、
+免费套餐信息以及 `dm_free_...` Key。随后在安装器中选择“输入已有
+DataMind API Key”，粘贴 Key，输入过程不会回显。
 
 ### 3. 非交互安装时使用环境变量
 

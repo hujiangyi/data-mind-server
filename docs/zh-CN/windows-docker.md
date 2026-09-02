@@ -9,7 +9,8 @@ Go 服务不发布 Windows 原生可执行文件。Windows 用户使用 Docker D
 - Docker Desktop 使用 Linux Containers 模式。
 - 可以执行 `docker compose`。
 - Windows 主机架构为 AMD64 或 ARM64。
-- 用户已经获得 DataMind Cloud API Key。
+- 交互式安装不要求提前获得 DataMind Cloud API Key；安装器可以代为注册
+  免费账号。自动化安装时需要通过环境变量提供已有 Key。
 
 在 PowerShell 中执行：
 
@@ -26,7 +27,9 @@ Windows ARM64 -> Linux ARM64
 
 脚本下载的版本化 Docker 分发包包含已经编译好的 Linux Go 二进制、
 runtime Dockerfile、Compose 文件、配置模板和数据库迁移文件。随后脚本
-会询问 DataMind Cloud API Key，并启动本地容器。
+如果没有现成的 DataMind Cloud API Key，会引导填写真实邮箱和 Cloud 登录
+密码，自动注册免费账号并取得 Key，然后启动本地容器。也可以在菜单中
+选择输入已有 Key。
 
 默认访问地址：
 

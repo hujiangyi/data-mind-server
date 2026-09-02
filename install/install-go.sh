@@ -201,6 +201,173 @@ validate_secret() {
   [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || fail "$name 不能包含换行"
 }
 
+json_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "$value"
+}
+
+json_data_value() {
+  local file="$1"
+  local field="$2"
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg field "$field" '.data[$field] // empty' "$file" 2>/dev/null || true
+  else
+    sed -nE 's/.*"'"$field"'":[[:space:]]*"([^"]*)".*/\1/p' "$file" | head -1
+  fi
+}
+
+json_error_value() {
+  local file="$1"
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '.error // empty' "$file" 2>/dev/null || true
+  else
+    sed -nE 's/.*"error":[[:space:]]*"([^"]*)".*/\1/p' "$file" | head -1
+  fi
+}
+
+register_free_cloud_key() {
+  local email
+  local password
+  local confirmation
+  local payload
+  local response_file
+  local status
+  local error_code
+  local registered_key
+  local key_kind
+  local register_url="${CLOUD_API_BASE%/}/cloud/auth/register"
+
+  command -v curl >/dev/null 2>&1 || {
+    printf '当前系统没有 curl，无法自动注册；请选择手工输入已有 DataMind API Key。\n' >&2
+    return 1
+  }
+  [[ -r /dev/tty ]] || {
+    printf '当前安装不是交互终端，无法收集注册信息。\n' >&2
+    return 1
+  }
+
+  printf '\nDataMind Cloud 注册只需要一个真实邮箱和至少 8 位密码。\n'
+  printf '邮箱用于账号登录和后续账号管理，请确认邮箱可以正常收信。\n'
+  read -r -p '注册邮箱： ' email < /dev/tty || return 1
+  if [[ ! "$email" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
+    printf '邮箱格式不正确，请重新输入。\n' >&2
+    return 1
+  fi
+
+  read -r -s -p '设置 Cloud 登录密码（至少 8 位）： ' password < /dev/tty || return 1
+  printf '\n'
+  read -r -s -p '确认 Cloud 登录密码： ' confirmation < /dev/tty || return 1
+  printf '\n'
+  if [[ "${#password}" -lt 8 ]]; then
+    printf '密码至少需要 8 位，请重新注册。\n' >&2
+    return 1
+  fi
+  if [[ "$password" != "$confirmation" ]]; then
+    printf '两次密码不一致，请重新注册。\n' >&2
+    return 1
+  fi
+
+  payload="$(printf '{"email":"%s","password":"%s"}' "$(json_escape "$email")" "$(json_escape "$password")")"
+  response_file="$(mktemp "${TMPDIR:-/tmp}/datamind-cloud-register.XXXXXX")"
+  if ! status="$(printf '%s' "$payload" | curl --silent --show-error --location --ipv4 --http1.1 \
+      --retry 2 --retry-delay 1 --connect-timeout 10 --max-time 30 \
+      -H 'content-type: application/json' \
+      --data-binary @- -o "$response_file" -w '%{http_code}' "$register_url")"; then
+    rm -f "$response_file"
+    printf '无法连接 DataMind Cloud 注册服务，请检查网络或稍后重试。\n' >&2
+    return 1
+  fi
+
+  registered_key="$(json_data_value "$response_file" key)"
+  key_kind="$(json_data_value "$response_file" keyKind)"
+  error_code="$(json_error_value "$response_file")"
+  rm -f "$response_file"
+
+  case "$status" in
+    200|201)
+      if [[ "$registered_key" != dm_free_* ]]; then
+        printf 'Cloud 注册响应中没有有效的免费 API Key，请稍后重试。\n' >&2
+        return 1
+      fi
+      API_KEY="$registered_key"
+      printf 'Cloud 账号注册成功，已获取免费 DataMind API Key（%s）。\n' "${key_kind:-free}"
+      return 0
+      ;;
+    400)
+      printf 'Cloud 注册资料无效（%s），请检查邮箱和密码后重试。\n' "${error_code:-invalid_request}" >&2
+      return 1
+      ;;
+    409)
+      printf '该邮箱已经注册，请换一个邮箱，或返回菜单输入已有 API Key。\n' >&2
+      return 1
+      ;;
+    *)
+      printf 'Cloud 注册失败（HTTP %s，%s），请稍后重试或输入已有 API Key。\n' \
+        "$status" "${error_code:-request_failed}" >&2
+      return 1
+      ;;
+  esac
+}
+
+read_existing_cloud_key() {
+  local entered_key
+  read -r -s -p '请输入 DataMind API Key： ' entered_key < /dev/tty || return 1
+  printf '\n'
+  API_KEY="$entered_key"
+}
+
+obtain_cloud_api_key() {
+  local choice
+
+  if [[ -n "$API_KEY" ]]; then
+    return 0
+  fi
+  if [[ ! -r /dev/tty ]]; then
+    fail "未提供 DataMind API Key。请执行交互式安装，或设置 DATAMIND_CLOUD_API_KEY 后重试"
+  fi
+
+  while true; do
+    printf '\n未检测到 DataMind Cloud API Key。\n'
+    printf 'DataMind Server 需要该 Key 访问 Cloud AI；它不是 Agnes 上游 API Key。\n'
+    printf '请选择操作：\n'
+    printf '  1) 自动注册免费账号并生成 Key（推荐）\n'
+    printf '  2) 输入已有 DataMind API Key\n'
+    printf '  3) 退出安装\n'
+    read -r -p '请选择 [1]： ' choice < /dev/tty || fail "未完成 DataMind API Key 配置"
+    choice="${choice:-1}"
+
+    case "$choice" in
+      1)
+        if register_free_cloud_key; then
+          return 0
+        fi
+        ;;
+      2)
+        read_existing_cloud_key || fail "未完成 DataMind API Key 配置"
+        return 0
+        ;;
+      3|q|Q)
+        fail "用户取消安装"
+        ;;
+      *)
+        printf '请输入 1、2 或 3。\n' >&2
+        ;;
+    esac
+  done
+}
+
+validate_cloud_api_key() {
+  local value="$1"
+  validate_secret "DataMind API Key" "$value"
+  [[ "$value" == dm_free_* || "$value" == dm_member_* ]] ||
+    fail "DataMind API Key 格式不正确；请使用 Cloud 注册后获得的 dm_free_... 或会员 Key"
+}
+
 [[ "$EUID" -eq 0 ]] || fail "Linux Go 服务需要 root 权限，请使用 sudo 或 root 执行"
 [[ "$CLOUD_API_BASE" =~ ^https?://[^[:space:]]+$ ]] || fail "DATAMIND_CLOUD_API_BASE 必须是 HTTP 或 HTTPS 地址"
 
@@ -227,15 +394,8 @@ ENV_FILE="$INSTALL_DIR/.env"
 if [[ -z "$API_KEY" ]]; then
   API_KEY="$(read_env_value "$ENV_FILE" "DATAMIND_CLOUD_API_KEY")"
 fi
-if [[ -z "$API_KEY" ]]; then
-  if [[ -r /dev/tty ]]; then
-    read -r -s -p "请输入 DataMind API Key： " API_KEY < /dev/tty
-    printf '\n'
-  else
-    fail "未提供 DataMind API Key，请设置 DATAMIND_CLOUD_API_KEY 后重试"
-  fi
-fi
-validate_secret "DataMind API Key" "$API_KEY"
+obtain_cloud_api_key
+validate_cloud_api_key "$API_KEY"
 
 if [[ -z "$MCP_SETUP_BASE_URL" ]]; then
   MCP_SETUP_BASE_URL="$(read_env_value "$ENV_FILE" "DAAS_MCP_SETUP_BASE_URL")"

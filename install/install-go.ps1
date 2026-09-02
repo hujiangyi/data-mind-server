@@ -60,6 +60,137 @@ function Read-SecretValue([string]$Prompt) {
     }
 }
 
+function Test-CloudApiKey([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+    if ($Value.Contains("`r") -or $Value.Contains("`n")) {
+        return $false
+    }
+    return $Value -match "^dm_(free|member)_.+$"
+}
+
+function Register-FreeCloudKey() {
+    Write-Host ""
+    Write-Host "DataMind Cloud 注册只需要一个真实邮箱和至少 8 位密码。"
+    Write-Host "邮箱用于账号登录和后续账号管理，请确认邮箱可以正常收信。"
+    $email = Read-Host "注册邮箱"
+    if ([string]::IsNullOrWhiteSpace($email) -or $email -notmatch "^[^\s@]+@[^\s@]+\.[^\s@]+$") {
+        Write-Host "邮箱格式不正确，请重新输入。" -ForegroundColor Yellow
+        return ""
+    }
+
+    $password = Read-SecretValue "设置 Cloud 登录密码（至少 8 位）"
+    $confirmation = Read-SecretValue "确认 Cloud 登录密码"
+    if ($password.Length -lt 8) {
+        Write-Host "密码至少需要 8 位，请重新注册。" -ForegroundColor Yellow
+        return ""
+    }
+    if ($password -cne $confirmation) {
+        Write-Host "两次密码不一致，请重新注册。" -ForegroundColor Yellow
+        return ""
+    }
+
+    $payload = @{
+        email = $email
+        password = $password
+    } | ConvertTo-Json -Compress
+    $registerUrl = "$($CloudApiBase.TrimEnd('/'))/cloud/auth/register"
+
+    try {
+        $response = Invoke-RestMethod `
+            -Uri $registerUrl `
+            -Method Post `
+            -ContentType "application/json" `
+            -Body $payload `
+            -TimeoutSec 30
+        $registeredKey = [string]$response.data.key
+        $keyKind = [string]$response.data.keyKind
+        if (-not (Test-CloudApiKey $registeredKey) -or $registeredKey -notmatch "^dm_free_") {
+            Write-Host "Cloud 注册响应中没有有效的免费 API Key，请稍后重试。" -ForegroundColor Yellow
+            return ""
+        }
+        if ([string]::IsNullOrWhiteSpace($keyKind)) {
+            $keyKind = "free"
+        }
+        Write-Host "Cloud 账号注册成功，已获取免费 DataMind API Key（$keyKind）。"
+        return $registeredKey
+    }
+    catch {
+        $statusCode = 0
+        if ($_.Exception.Response) {
+            try {
+                $statusCode = [int]$_.Exception.Response.StatusCode
+            }
+            catch {
+                $statusCode = 0
+            }
+        }
+        switch ($statusCode) {
+            400 {
+                Write-Host "Cloud 注册资料无效，请检查邮箱和密码后重试。" -ForegroundColor Yellow
+            }
+            409 {
+                Write-Host "该邮箱已经注册，请换一个邮箱，或返回菜单输入已有 API Key。" -ForegroundColor Yellow
+            }
+            default {
+                Write-Host "Cloud 注册失败（HTTP $statusCode），请检查网络或稍后重试。" -ForegroundColor Yellow
+            }
+        }
+        return ""
+    }
+}
+
+function Get-CloudApiKey([string]$EnvPath) {
+    if (-not $ForceKey -and -not [string]::IsNullOrWhiteSpace($env:DATAMIND_CLOUD_API_KEY)) {
+        return $env:DATAMIND_CLOUD_API_KEY
+    }
+
+    $configuredKey = ""
+    if (-not $ForceKey) {
+        $configuredKey = Get-EnvValue $EnvPath "DATAMIND_CLOUD_API_KEY"
+        if (-not [string]::IsNullOrWhiteSpace($configuredKey)) {
+            return $configuredKey
+        }
+    }
+
+    while ($true) {
+        Write-Host ""
+        Write-Host "未检测到 DataMind Cloud API Key。"
+        Write-Host "DataMind Server 需要该 Key 访问 Cloud AI；它不是 Agnes 上游 API Key。"
+        Write-Host "请选择操作："
+        Write-Host "  1) 自动注册免费账号并生成 Key（推荐）"
+        Write-Host "  2) 输入已有 DataMind API Key"
+        Write-Host "  3) 退出安装"
+        $choice = Read-Host "请选择 [1]"
+        if ([string]::IsNullOrWhiteSpace($choice)) {
+            $choice = "1"
+        }
+
+        switch ($choice) {
+            "1" {
+                $registeredKey = Register-FreeCloudKey
+                if (-not [string]::IsNullOrWhiteSpace($registeredKey)) {
+                    return $registeredKey
+                }
+            }
+            "2" {
+                $enteredKey = Read-SecretValue "请输入 DataMind API Key"
+                if (Test-CloudApiKey $enteredKey) {
+                    return $enteredKey
+                }
+                Write-Host "DataMind API Key 格式不正确，请使用 Cloud 注册后获得的 dm_free_... 或会员 Key。" -ForegroundColor Yellow
+            }
+            "3" {
+                Fail "用户取消安装"
+            }
+            default {
+                Write-Host "请输入 1、2 或 3。" -ForegroundColor Yellow
+            }
+        }
+    }
+}
+
 function New-MasterKey() {
     $bytes = New-Object byte[] 32
     $random = [Security.Cryptography.RandomNumberGenerator]::Create()
@@ -205,12 +336,9 @@ try {
     }
 
     $envPath = Join-Path $InstallDir ".env"
-    $cloudApiKey = Get-EnvValue $envPath "DATAMIND_CLOUD_API_KEY"
-    if ($ForceKey -or [string]::IsNullOrWhiteSpace($cloudApiKey)) {
-        $cloudApiKey = Read-SecretValue "请输入 DataMind API Key"
-    }
-    if ([string]::IsNullOrWhiteSpace($cloudApiKey) -or $cloudApiKey.Contains("`r") -or $cloudApiKey.Contains("`n")) {
-        Fail "DataMind API Key 不能为空，且不能包含换行"
+    $cloudApiKey = Get-CloudApiKey $envPath
+    if (-not (Test-CloudApiKey $cloudApiKey)) {
+        Fail "DataMind API Key 格式不正确；请使用 Cloud 注册后获得的 dm_free_... 或会员 Key"
     }
 
     $masterKey = Get-EnvValue $envPath "DAAS_MCP_MASTER_KEY"
