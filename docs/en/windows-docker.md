@@ -28,10 +28,13 @@ Windows ARM64 -> Linux ARM64
 
 It downloads a versioned Docker bundle containing the compiled Linux Go
 binary, runtime Dockerfile, Compose file, configuration template, and
-migrations. The installer checks Cloud AI connectivity before downloading. If
-no DataMind Cloud API key is available, it guides the user through
-mailbox/password registration, obtains a free key, and starts the local
-container. The menu also supports entering an existing key.
+migrations. The installer checks Docker, external network access, and port
+availability before downloading. If no DataMind Cloud API key is available, it
+guides the user through mailbox/password registration and obtains a free key.
+For an existing mailbox, it verifies the password and issues a fresh key. The
+password is entered once with visible terminal input. After starting the
+container, the installer waits for the container health state, local port, and
+Cloud AI welcome check to pass. The menu also supports entering an existing key.
 
 The default endpoint is:
 
@@ -66,8 +69,9 @@ Runtime data is stored under:
 ```
 
 Configuration and the DataMind API Key are stored under the same installation
-directory. Upgrades replace the versioned binary and runtime files while
-preserving the local configuration and SQLite data.
+directory. A newly obtained key is shown once with its save location. Upgrades
+replace the versioned binary and runtime files while preserving the local
+configuration and SQLite data.
 
 Stop and remove the container while keeping data:
 

@@ -112,11 +112,13 @@ DataMind 适合以下安全诉求：
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-脚本会先检查 Cloud AI 网络连接，再根据服务器架构选择 Linux AMD64 或
-ARM64，并探测 Gitee 和 GitHub Release 镜像；每个网络探测都会显示进度。
+脚本会先检查系统依赖、外部网络、可用下载源和 `3001` 端口，再根据服务器
+架构选择 Linux AMD64 或 ARM64。正常输出只展示检查是否通过，不显示 Cloud
+内部地址或上游 HTTP 细节。
 如果没有现成的 DataMind Cloud API Key，脚本会引导填写邮箱和 Cloud
 登录密码，自动注册免费账号并取得 Key，然后创建 `datamind-go.service`。
-服务默认监听 `127.0.0.1:3001`，同时提供 Vue 网站和服务端 API。
+如果邮箱已经注册，输入匹配的 Cloud 密码即可签发一个新的可用 Key。
+服务默认监听 `0.0.0.0:3001`，同时提供 Vue 网站和服务端 API。
 
 ### Windows
 
@@ -134,11 +136,15 @@ irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/in
 http://127.0.0.1:3001
 ```
 
+容器端口默认绑定 `0.0.0.0:3001`，本机访问仍使用
+`http://127.0.0.1:3001`。
+
 ### Nginx 和 HTTPS
 
 生产环境建议使用 HTTPS 域名反向代理到 Go 服务。参考：
 
 - [Nginx 部署](docs/zh-CN/nginx.md)
+- [管理员操作指南](docs/zh-CN/admin-guide.md)
 - [Windows Docker](docs/zh-CN/windows-docker.md)
 - [Release 镜像](docs/zh-CN/release-mirrors.md)
 
@@ -171,12 +177,16 @@ irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/in
 选择 `1` 后，只需填写：
 
 - 一个真实、当前可以正常收信的邮箱地址；
-- 一个至少 8 位的 Cloud 登录密码，并确认一次。
+- 一个至少 8 位的 Cloud 登录密码，输入一次即可；安装器按用户要求采用
+  可见输入，方便在服务器终端确认。
 
 安装器会通过 Cloud 注册接口自动创建免费账号，取得 `dm_free_...` 形式的
-DataMind Cloud API Key，并把它写入服务端受限权限配置。Key 不会在终端中
-回显，也不需要手工编辑 `/opt/datamind-go` 或 Windows 安装目录中的配置。
-安装完成后，服务默认访问地址为：
+DataMind Cloud API Key，并把它写入服务端受限权限配置。邮箱已经注册时，
+安装器会用同一组邮箱和密码完成验证并签发新的 Key，不要求重新注册。
+新取得的 Key 会在安装过程中显示一次，并提示保存位置；不要把终端输出分享
+给他人。安装器还会等待服务真正进入运行状态，确认端口监听、健康接口和
+Cloud AI 欢迎语能力都通过后才报告成功。
+安装完成后，服务访问地址为：
 
 ```text
 http://127.0.0.1:3001
@@ -188,8 +198,9 @@ http://127.0.0.1:3001
 
 ### 2. 已有账号或网页注册
 
-如果邮箱已经注册，安装器会提示换一个邮箱，或者返回菜单选择
-“输入已有 DataMind API Key”。也可以先打开 DataMind Cloud 网站：
+如果邮箱已经注册，安装器会使用输入的 Cloud 密码验证账号并取得新的
+DataMind API Key。密码不匹配时再重新输入即可。也可以先打开 DataMind
+Cloud 网站：
 
 ```text
 https://dm.iter-self.top/
@@ -197,7 +208,7 @@ https://dm.iter-self.top/
 
 在注册区域填写真实邮箱和至少 8 位密码。注册成功后，网页会显示账号信息、
 免费套餐信息以及 `dm_free_...` Key。随后在安装器中选择“输入已有
-DataMind API Key”，粘贴 Key，输入过程不会回显。
+DataMind API Key”，粘贴 Key。
 
 ### 3. 非交互安装时使用环境变量
 

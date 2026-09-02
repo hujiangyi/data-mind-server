@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${DATAMIND_BIND_ADDRESS:-127.0.0.1}:${DATAMIND_PORT:-3001}:3001"
+      - "${DATAMIND_BIND_ADDRESS:-0.0.0.0}:${DATAMIND_PORT:-3001}:3001"
     volumes:
       - ./data:/opt/datamind/data
       - ./configs:/opt/datamind/configs:ro
@@ -15,9 +15,11 @@ services:
     healthcheck:
       test:
         - CMD
-        - curl
-        - --fail
-        - --silent
+        - /usr/local/bin/busybox
+        - wget
+        - -q
+        - -O
+        - /dev/null
         - http://127.0.0.1:3001/health
       interval: 10s
       timeout: 3s

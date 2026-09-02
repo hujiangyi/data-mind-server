@@ -14,11 +14,11 @@ Vue 管理页面和服务端 API。
 
 ## Linux 服务器
 
-使用 root 执行一键命令。脚本会选择匹配的架构，探测 Gitee 和 GitHub
-Release 镜像，校验下载文件，并创建 `datamind-go.service`。正式下载前
-会先检查 Cloud AI 网络连接，并逐个显示 Release 源的可用状态。如果没有
-现成的 DataMind Cloud API Key，安装器会引导填写邮箱和 Cloud 登录密码，
-自动注册免费账号并取得 Key：
+使用 root 执行一键命令。脚本会先检查系统权限、架构、必要依赖、外部网络、
+可用下载源和 `3001` 端口，再下载并校验匹配的 Release，最后创建
+`datamind-go.service`。正常输出只显示检查是否通过，不显示 Cloud 内部
+地址或上游 HTTP 状态。如果没有现成的 DataMind Cloud API Key，安装器会
+引导填写邮箱和 Cloud 登录密码，自动注册免费账号并取得 Key：
 
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
@@ -26,7 +26,8 @@ Release 镜像，校验下载文件，并创建 `datamind-go.service`。正式�
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-服务默认监听 `127.0.0.1:3001`，同时提供 Vue 网站和服务端 API。
+服务默认监听 `0.0.0.0:3001`，同时提供 Vue 网站和服务端 API。安装前会
+检查端口是否已被占用，启动后会等待服务进程、监听地址和健康接口全部通过。
 
 需要指定 Release 下载源时，可以设置：
 
@@ -62,8 +63,9 @@ Windows 不使用原生 Go 可执行文件。请安装并启动 Docker Desktop�
 irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
 ```
 
-安装脚本会选择对应的 Linux Docker 分发包。如果没有现成的 Cloud API Key，
-会引导填写邮箱和 Cloud 登录密码，自动注册免费账号并启动：
+安装脚本会检查 Docker Desktop、网络和端口，选择对应的 Linux Docker
+分发包。如果没有现成的 Cloud API Key，会引导填写邮箱和 Cloud 登录密码，
+自动注册免费账号并启动。容器端口默认绑定 `0.0.0.0:3001`，本机访问地址为：
 
 ```text
 http://127.0.0.1:3001
@@ -94,14 +96,16 @@ DATAMIND_CLOUD_API_KEY
 1) 自动注册免费账号并生成 Key（推荐）
 ```
 
-然后填写真实、可收信的邮箱和至少 8 位 Cloud 登录密码。安装器会调用
-Cloud 注册接口，取得 `dm_free_...` Key，并以受限权限写入本地配置。Key
-不会回显，也不会写入 Release 压缩包或 Docker 镜像。
+然后填写真实、可收信的邮箱和至少 8 位 Cloud 登录密码，密码只输入一次且
+按用户要求采用可见输入。安装器会调用 Cloud 注册接口，取得
+`dm_free_...` Key，并以受限权限写入本地配置。新取得的 Key 会在安装过程
+中显示一次，并提示服务端保存位置。
 
-如果邮箱已经注册，可以选择另一个邮箱，或者返回菜单输入已有 Key。也可以
-先访问 `https://dm.iter-self.top/` 完成注册，再把网页显示的 Key 粘贴到
-安装器。注册密码仅用于 Cloud 登录，不能代替 API Key；其他 Cloud 服务
-凭据属于内部部署信息，也不能作为 DataMind Cloud API Key。
+如果邮箱已经注册，安装器会使用刚才输入的密码验证账号并签发新的 Key；
+密码不匹配时重新输入即可。也可以先访问 `https://dm.iter-self.top/` 完成
+注册，再把网页显示的 Key 粘贴到安装器。注册密码仅用于 Cloud 登录，不能
+代替 API Key；其他 Cloud 服务凭据属于内部部署信息，也不能作为 DataMind
+Cloud API Key。
 
 ### 自动化安装
 
@@ -117,15 +121,17 @@ DATAMIND_CLOUD_API_KEY
 
 ## 公网域名和 Nginx
 
-服务可以直接使用 `3001` 端口运行。如果需要公网域名和 HTTPS，请让
-Nginx 将域名代理到 `127.0.0.1:3001`：
+服务可以直接使用 `3001` 端口运行。启动成功后安装器会使用当前 Key 生成一段
+Cloud AI 欢迎语，确认 AI 能力可达后才报告安装成功。如果需要公网域名和
+HTTPS，请让 Nginx 将域名代理到 `127.0.0.1:3001`：
 
 ```text
 https://data.example.com -> Nginx :443 -> DataMind Server :3001
 ```
 
-反向代理模板请参考 [Nginx 部署](nginx.md)。使用 Nginx 时，建议 Go
-服务只监听本机回环地址或私有容器网络。
+反向代理模板请参考 [Nginx 部署](nginx.md)。如果不希望直接暴露 `3001`，
+可在安装前设置 `DATAMIND_BIND_ADDRESS=127.0.0.1`，让 Nginx 作为唯一公网
+入口。
 
 ## 数据和升级
 
@@ -135,9 +141,9 @@ https://data.example.com -> Nginx :443 -> DataMind Server :3001
 Linux 停止并移除服务：
 
 ```bash
-sudo systemctl disable --now datamind-go.service
-sudo rm -f /etc/systemd/system/datamind-go.service
-sudo systemctl daemon-reload
+{ curl -fsSL https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.sh ||
+  curl -fsSL https://gitee.com/hujiangyi/data-mind-server/raw/main/install/uninstall-go.sh; } |
+  sudo bash
 ```
 
 Windows 使用对应的 `uninstall-go.ps1` 脚本。未使用清理数据选项时，只会
@@ -149,3 +155,4 @@ Windows 使用对应的 `uninstall-go.ps1` 脚本。未使用清理数据选项�
 - [Nginx 部署](nginx.md)
 - [Release 镜像](release-mirrors.md)
 - [故障排查](troubleshooting.md)
+- [管理员操作指南](admin-guide.md)

@@ -16,12 +16,12 @@ same service.
 
 ## Linux server
 
-Run the bootstrap command as root. It selects the matching architecture,
-probes the Gitee and GitHub Release mirrors, verifies the downloaded checksum,
-and creates `datamind-go.service`. Before downloading the binary, it checks
-Cloud AI connectivity and shows the availability of each Release source. When
-no existing DataMind Cloud API key is available, the installer guides the user
-through email/password registration and obtains a free key:
+Run the bootstrap command as root. It first checks permissions, architecture,
+required dependencies, external network access, a usable download source, and
+port `3001`. It then downloads and verifies the matching Release and creates
+`datamind-go.service`. Normal output reports pass/fail stages without exposing
+the Cloud internal address or upstream HTTP status. When no existing DataMind
+Cloud API key is available, the installer guides the user through registration:
 
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
@@ -29,8 +29,9 @@ through email/password registration and obtains a free key:
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-The service listens on `127.0.0.1:3001` by default and serves both the Vue
-website and server APIs.
+The service listens on `0.0.0.0:3001` by default and serves both the Vue website
+and server APIs. The installer checks port occupancy before installation and
+waits for the process, listener, and health endpoint after startup.
 
 To choose a release mirror explicitly:
 
@@ -68,9 +69,9 @@ with Linux Containers enabled, then run this command in PowerShell:
 irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.ps1 | iex
 ```
 
-The installer selects the matching Linux Docker bundle. When no existing Cloud
-API key is available, it guides the user through email/password registration
-and starts the service at:
+The installer checks Docker Desktop, network access, and port availability,
+selects the matching Linux Docker bundle, and starts the service. When no
+existing Cloud API key is available, it guides the user through registration:
 
 ```text
 http://127.0.0.1:3001
@@ -103,17 +104,17 @@ On the first interactive run, when no key is detected, choose:
 ```
 
 Provide a real mailbox that can receive mail and a Cloud login password with
-at least 8 characters. The installer calls the Cloud registration endpoint,
-receives a `dm_free_...` key, and stores it in the restricted local
-configuration. The key is not echoed and is not placed in a release archive
-or Docker image.
+at least 8 characters. The password is entered once with visible terminal
+input. The installer calls the Cloud registration endpoint, receives a
+`dm_free_...` key, and stores it in the restricted local configuration. A
+newly obtained key is shown once with its server-side save location.
 
-If the mailbox is already registered, use another mailbox or return to the
-menu and enter an existing key. You can also register first at
-`https://dm.iter-self.top/` and paste the key shown by the website into the
-installer. The registration password is only for Cloud sign-in and cannot
-replace the API key. Other Cloud service credentials are internal deployment
-details and are not DataMind Cloud API keys.
+If the mailbox is already registered, the installer verifies the same Cloud
+password and issues a fresh key; enter the password again if it does not match.
+You can also register first at `https://dm.iter-self.top/` and paste the key
+shown by the website into the installer. The registration password is only for
+Cloud sign-in and cannot replace the API key. Other Cloud service credentials
+are internal deployment details and are not DataMind Cloud API keys.
 
 ### Automated installation
 
@@ -129,15 +130,18 @@ browser code, release archives, Docker images, or public issue reports.
 
 ## Public domain and Nginx
 
-The service can run directly on port `3001`. For a public domain and HTTPS,
-configure Nginx to proxy the domain to `127.0.0.1:3001`:
+The service can run directly on port `3001`. After startup, the installer sends
+a small welcome request through the configured Cloud AI capability and reports
+success only after that check passes. For a public domain and HTTPS, configure
+Nginx to proxy the domain to `127.0.0.1:3001`:
 
 ```text
 https://data.example.com -> Nginx :443 -> DataMind Server :3001
 ```
 
-See [Nginx deployment](nginx.md) for the reverse-proxy template. Keep the Go
-service bound to loopback or the private container network when Nginx is used.
+See [Nginx deployment](nginx.md) for the reverse-proxy template. To avoid
+directly exposing port `3001`, set `DATAMIND_BIND_ADDRESS=127.0.0.1` before
+installation and use Nginx as the public entry point.
 
 ## Data and upgrades
 
@@ -148,9 +152,9 @@ the service while preserving the local data directory.
 Stop and remove a Linux installation:
 
 ```bash
-sudo systemctl disable --now datamind-go.service
-sudo rm -f /etc/systemd/system/datamind-go.service
-sudo systemctl daemon-reload
+{ curl -fsSL https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.sh ||
+  curl -fsSL https://gitee.com/hujiangyi/data-mind-server/raw/main/install/uninstall-go.sh; } |
+  sudo bash
 ```
 
 For Windows, use the matching `uninstall-go.ps1` script. Without the purge
@@ -162,3 +166,4 @@ option it removes the container while preserving local data.
 - [Nginx deployment](nginx.md)
 - [Release mirrors](release-mirrors.md)
 - [Troubleshooting](troubleshooting.md)
+- [Administrator guide](admin-guide.md)

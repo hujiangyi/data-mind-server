@@ -13,6 +13,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$script:ApiKeyObtained = $false
+$script:BindAddress = if ([string]::IsNullOrWhiteSpace($env:DATAMIND_BIND_ADDRESS)) { "0.0.0.0" } else { $env:DATAMIND_BIND_ADDRESS }
+$script:Port = if ([string]::IsNullOrWhiteSpace($env:DATAMIND_PORT)) { 3001 } else { [int]$env:DATAMIND_PORT }
 
 function Fail([string]$Message) {
     throw $Message
@@ -80,14 +83,9 @@ function Register-FreeCloudKey() {
         return ""
     }
 
-    $password = Read-SecretValue "设置 Cloud 登录密码（至少 8 位）"
-    $confirmation = Read-SecretValue "确认 Cloud 登录密码"
+    $password = Read-Host "设置 Cloud 登录密码（至少 8 位，可见输入）"
     if ($password.Length -lt 8) {
         Write-Host "密码至少需要 8 位，请重新注册。" -ForegroundColor Yellow
-        return ""
-    }
-    if ($password -cne $confirmation) {
-        Write-Host "两次密码不一致，请重新注册。" -ForegroundColor Yellow
         return ""
     }
 
@@ -113,6 +111,7 @@ function Register-FreeCloudKey() {
         if ([string]::IsNullOrWhiteSpace($keyKind)) {
             $keyKind = "free"
         }
+        $script:ApiKeyObtained = $true
         Write-Host "Cloud 账号注册成功，已获取免费 DataMind API Key（$keyKind）。"
         return $registeredKey
     }
@@ -131,11 +130,52 @@ function Register-FreeCloudKey() {
                 Write-Host "Cloud 注册资料无效，请检查邮箱和密码后重试。" -ForegroundColor Yellow
             }
             409 {
-                Write-Host "该邮箱已经注册，请换一个邮箱，或返回菜单输入已有 API Key。" -ForegroundColor Yellow
+                return Get-ExistingCloudKey $email $password
             }
             default {
-                Write-Host "Cloud 注册失败（HTTP $statusCode），请检查网络或稍后重试。" -ForegroundColor Yellow
+                Write-Host "Cloud 注册未完成，请检查网络或稍后重试。" -ForegroundColor Yellow
             }
+        }
+        return ""
+    }
+}
+
+function Get-ExistingCloudKey([string]$Email, [string]$Password) {
+    $payload = @{
+        email = $Email
+        password = $Password
+    } | ConvertTo-Json -Compress
+    $keyUrl = "$($CloudApiBase.TrimEnd('/'))/cloud/auth/installer-key"
+
+    try {
+        $response = Invoke-RestMethod `
+            -Uri $keyUrl `
+            -Method Post `
+            -ContentType "application/json" `
+            -Body $payload `
+            -TimeoutSec 30
+        $existingKey = [string]$response.data.key
+        $keyKind = [string]$response.data.keyKind
+        if (-not (Test-CloudApiKey $existingKey)) {
+            Write-Host "账号验证成功，但没有取得有效的 DataMind API Key，请稍后重试。" -ForegroundColor Yellow
+            return ""
+        }
+        if ([string]::IsNullOrWhiteSpace($keyKind)) {
+            $keyKind = "free"
+        }
+        $script:ApiKeyObtained = $true
+        Write-Host "邮箱已注册，密码验证通过，已取得 DataMind API Key（$keyKind）。"
+        return $existingKey
+    }
+    catch {
+        $statusCode = 0
+        if ($_.Exception.Response) {
+            try { $statusCode = [int]$_.Exception.Response.StatusCode } catch { $statusCode = 0 }
+        }
+        if ($statusCode -eq 401 -or $statusCode -eq 403) {
+            Write-Host "邮箱或 Cloud 登录密码不匹配，请重新输入。" -ForegroundColor Yellow
+        } else {
+            Write-Host "账号验证未完成，请检查网络或稍后重试。" -ForegroundColor Yellow
         }
         return ""
     }
@@ -212,40 +252,37 @@ function Get-ReleaseRoot([string]$Base, [string]$ReleaseVersion) {
 }
 
 function Test-ReleaseSource([string]$Base, [string]$ReleaseVersion) {
-    Write-Host "检查 Release 源：$Base ..." -NoNewline
     try {
         $root = Get-ReleaseRoot $Base $ReleaseVersion
         Invoke-WebRequest -Uri "$root/checksums.txt" -UseBasicParsing -TimeoutSec 8 | Out-Null
-        Write-Host " 可用"
         return $true
     }
     catch {
-        Write-Host " 不可用" -ForegroundColor Yellow
         return $false
     }
 }
 
 function Test-CloudNetwork() {
-    Write-Host "安装前检查 Cloud AI 网络连接：$CloudApiBase ..." -NoNewline
+    Write-Host "[3/5] 检查 Cloud AI 网络连接 ..." -NoNewline
     try {
         $response = Invoke-WebRequest `
             -Uri "$($CloudApiBase.TrimEnd('/'))/" `
             -UseBasicParsing `
             -TimeoutSec 8
-        Write-Host " 可达（HTTP $($response.StatusCode)）"
+        Write-Host " 通过"
         return
     }
     catch {
         if ($_.Exception.Response) {
             try {
                 $statusCode = [int]$_.Exception.Response.StatusCode
-                Write-Host " 可达（HTTP $statusCode）"
+                Write-Host " 通过"
                 return
             }
             catch {
             }
         }
-        Write-Host " 失败" -ForegroundColor Yellow
+        Write-Host " 未通过" -ForegroundColor Yellow
         Write-Host "提示：请检查 DNS、HTTPS、防火墙或代理设置。" -ForegroundColor Yellow
         Fail "无法连接 Cloud AI"
     }
@@ -260,24 +297,92 @@ function Select-ReleaseBase() {
             "github" { $script:ReleaseBase = "https://github.com/hujiangyi/data-mind-server/releases/download" }
             "gitee" { $script:ReleaseBase = $GiteeReleaseBase }
             "auto" {
+                Write-Host "[4/5] 检查 Release 下载源 ..." -NoNewline
                 foreach ($candidate in @(
                     @{ Name = "gitee"; Base = $GiteeReleaseBase },
                     @{ Name = "github"; Base = "https://github.com/hujiangyi/data-mind-server/releases/download" }
                 )) {
                     if (Test-ReleaseSource $candidate.Base $Version) {
                         $script:ReleaseBase = $candidate.Base
-                        Write-Host "自动选择 Release 源：$($candidate.Name) ($($candidate.Base))"
+                        Write-Host " 通过（$($candidate.Name)）"
                         return
                     }
                 }
-                Fail "Gitee 和 GitHub Release 源均不可达；请设置 DATAMIND_RELEASE_BASE 指定镜像地址"
+                Write-Host " 未通过" -ForegroundColor Yellow
+                Fail "安装环境不满足要求：没有可用的下载源"
             }
         }
     }
     if (-not (Test-ReleaseSource $ReleaseBase $Version)) {
-        Fail "指定的 Release 源不可达：$ReleaseBase"
+        Fail "安装环境不满足要求：指定的下载源不可用"
     }
-    Write-Host "使用 Release 源：$ReleaseBase"
+    Write-Host "[4/5] 检查 Release 下载源 ... 通过"
+}
+
+function Test-PortAvailable([int]$Port) {
+    Write-Host "[5/5] 检查服务端口 ..." -NoNewline
+    $occupied = @()
+    if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
+        $occupied = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
+    } else {
+        $occupied = @(netstat -ano -p tcp 2>$null | Select-String "LISTENING\s+\S+\:$Port\s")
+    }
+    if ($occupied.Count -gt 0) {
+        Write-Host " 未通过" -ForegroundColor Yellow
+        Fail "服务端口已被占用，请停止占用端口的程序后重试"
+    }
+    Write-Host " 通过（$script:BindAddress`:$Port）"
+}
+
+function Test-DockerServiceReady([string]$Directory, [int]$Port) {
+    Push-Location $Directory
+    try {
+        $containerId = (& docker compose --project-name datamind --project-directory $Directory ps -q datamind-go 2>$null).Trim()
+        if ([string]::IsNullOrWhiteSpace($containerId)) {
+            return $false
+        }
+        $running = (& docker inspect --format '{{.State.Running}}' $containerId 2>$null).Trim()
+        $health = (& docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' $containerId 2>$null).Trim()
+        if ($running -ne "true" -or $health -eq "unhealthy") {
+            return $false
+        }
+        try {
+            $response = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/health" -UseBasicParsing -TimeoutSec 3
+            return $response.StatusCode -eq 200
+        }
+        catch {
+            return $false
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Test-CloudAiCapability([string]$ApiKey) {
+    Write-Host "检查 Cloud AI 能力 ..." -NoNewline
+    try {
+        $response = Invoke-RestMethod `
+            -Uri "$($CloudApiBase.TrimEnd('/'))/cloud/ai/welcome" `
+            -Method Post `
+            -Headers @{ Authorization = "Bearer $ApiKey" } `
+            -ContentType "application/json" `
+            -Body '{"stream":false}' `
+            -TimeoutSec 45
+        if ([string]::IsNullOrWhiteSpace([string]$response.data.message)) {
+            throw "empty ai response"
+        }
+        $message = ([string]$response.data.message -replace "\s+", " ").Trim()
+        if ($message.Length -gt 160) {
+            $message = $message.Substring(0, 160)
+        }
+        Write-Host " 通过，AI 欢迎语：$message"
+        return $true
+    }
+    catch {
+        Write-Host " 未通过" -ForegroundColor Yellow
+        return $false
+    }
 }
 
 Assert-Command "docker"
@@ -316,8 +421,16 @@ if ($CloudApiBase -notmatch "^https?://\S+$") {
     Fail "-CloudApiBase 必须是 HTTP 或 HTTPS 地址"
 }
 
+if ($script:Port -lt 1 -or $script:Port -gt 65535) {
+    Fail "DATAMIND_PORT 必须是 1 到 65535 之间的端口"
+}
+
+Write-Host "检查安装环境"
+Write-Host "[1/5] 检查系统权限和架构 ... 通过（Windows $processorArchitecture）"
+Write-Host "[2/5] 检查 Docker Desktop 和 Linux 容器 ... 通过"
 Test-CloudNetwork
 Select-ReleaseBase
+Test-PortAvailable $script:Port
 
 $temporaryRoot = Join-Path $env:TEMP "datamind-go-$([guid]::NewGuid().ToString('N'))"
 $archivePath = Join-Path $temporaryRoot "bundle.zip"
@@ -404,10 +517,18 @@ try {
         Fail "-McpPublicApiBase 必须是 HTTP 或 HTTPS 地址"
     }
 
+    $configuredBindAddress = Get-EnvValue $envPath "DATAMIND_BIND_ADDRESS"
+    if ([string]::IsNullOrWhiteSpace($configuredBindAddress)) {
+        $configuredBindAddress = $script:BindAddress
+    }
+    $configuredPort = Get-EnvValue $envPath "DATAMIND_PORT"
+    if ([string]::IsNullOrWhiteSpace($configuredPort)) {
+        $configuredPort = [string]$script:Port
+    }
     $lines = @(
         "DATAMIND_DOCKER_PLATFORM=$dockerPlatform"
-        "DATAMIND_BIND_ADDRESS=$(if (Get-EnvValue $envPath 'DATAMIND_BIND_ADDRESS') { Get-EnvValue $envPath 'DATAMIND_BIND_ADDRESS' } else { '127.0.0.1' })"
-        "DATAMIND_PORT=$(if (Get-EnvValue $envPath 'DATAMIND_PORT') { Get-EnvValue $envPath 'DATAMIND_PORT' } else { '3001' })"
+        "DATAMIND_BIND_ADDRESS=$configuredBindAddress"
+        "DATAMIND_PORT=$configuredPort"
         "DATAMIND_CLOUD_API_BASE=$CloudApiBase"
         "DATAMIND_CLOUD_API_KEY=$cloudApiKey"
         "DAAS_MCP_MASTER_KEY=$masterKey"
@@ -416,6 +537,13 @@ try {
     )
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllLines($envPath, $lines, $utf8)
+    if ($script:ApiKeyObtained) {
+        Write-Host ""
+        Write-Host "DataMind Cloud API Key（请立即保存）："
+        Write-Host $cloudApiKey
+        Write-Host "服务端保存位置：$envPath"
+        Write-Host "提醒：终端记录可能包含此 Key，请勿分享或提交到公开仓库。"
+    }
 
     Push-Location $InstallDir
     try {
@@ -428,32 +556,37 @@ try {
         Pop-Location
     }
 
-    $port = Get-EnvValue $envPath "DATAMIND_PORT"
-    if ([string]::IsNullOrWhiteSpace($port)) {
-        $port = "3001"
-    }
+    $port = [int]$configuredPort
     $healthy = $false
     for ($attempt = 1; $attempt -le 30; $attempt++) {
-        try {
-            $response = Invoke-WebRequest -Uri "http://127.0.0.1:$port/health" -UseBasicParsing -TimeoutSec 3
-            if ($response.StatusCode -eq 200) {
-                $healthy = $true
-                break
-            }
+        if (Test-DockerServiceReady $InstallDir $port) {
+            $healthy = $true
+            break
         }
-        catch {
-            Start-Sleep -Seconds 2
-        }
+        Start-Sleep -Seconds 2
     }
     if (-not $healthy) {
         & docker compose --project-name datamind --project-directory $InstallDir logs --tail 80
-        Fail "DataMind Go 服务健康检查失败：http://127.0.0.1:$port/health"
+        Write-Host "卸载命令：irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.ps1 | iex" -ForegroundColor Yellow
+        Fail "DataMind 服务启动检查失败"
+    }
+
+    if (-not (Test-CloudAiCapability $cloudApiKey)) {
+        Write-Host "提示：DataMind 服务已经启动，但 Cloud AI 能力检查未通过。" -ForegroundColor Yellow
+        Write-Host "卸载命令：irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.ps1 | iex" -ForegroundColor Yellow
+        Fail "Cloud AI 能力检查失败"
     }
 
     Write-Host "DataMind Go Docker 服务已启动"
     Write-Host "安装目录：$InstallDir"
-    Write-Host "访问地址：http://127.0.0.1:$port"
+    Write-Host "服务监听：$configuredBindAddress`:$port"
+    Write-Host "本机访问：http://127.0.0.1:$port"
     Write-Host "Docker 架构：$dockerPlatform"
+    Write-Host "卸载命令：irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.ps1 | iex"
+    Write-Host ""
+    Write-Host "管理员操作指南："
+    Write-Host "GitHub：https://github.com/hujiangyi/data-mind-server/blob/main/docs/zh-CN/admin-guide.md"
+    Write-Host "Gitee： https://gitee.com/hujiangyi/data-mind-server/blob/main/docs/zh-CN/admin-guide.md"
 }
 finally {
     if (Test-Path -LiteralPath $temporaryRoot) {

@@ -27,9 +27,10 @@ Windows ARM64 -> Linux ARM64
 
 脚本下载的版本化 Docker 分发包包含已经编译好的 Linux Go 二进制、
 runtime Dockerfile、Compose 文件、配置模板和数据库迁移文件。安装器会先
-检查 Cloud AI 网络连接，再开始下载。如果没有现成的 DataMind Cloud API
-Key，会引导填写真实邮箱和 Cloud 登录密码，自动注册免费账号并取得 Key，
-然后启动本地容器。也可以在菜单中选择输入已有 Key。
+检查 Docker、外部网络和端口，再开始下载。如果没有现成的 DataMind Cloud
+API Key，会引导填写真实邮箱和 Cloud 登录密码，自动注册免费账号并取得
+Key；已注册邮箱会验证密码并签发新的 Key。密码输入一次且可见。安装器
+启动容器后会等待容器健康状态、本机端口和 Cloud AI 欢迎语检查全部通过。
 
 默认访问地址：
 
@@ -62,8 +63,9 @@ Windows 用户不需要安装 Go、MinGW，也不需要 Windows 原生 Go 二进
 %LOCALAPPDATA%\DataMind\data
 ```
 
-配置和 DataMind API Key 也保存在安装目录中。升级时只替换版本化二进制
-和 Docker 运行文件，保留本地配置和 SQLite 数据。
+配置和 DataMind API Key 也保存在安装目录中。新取得的 Key 会在安装过程中
+显示一次，并提示保存位置。升级时只替换版本化二进制和 Docker 运行文件，
+保留本地配置和 SQLite 数据。
 
 停止并删除容器，但保留数据：
 

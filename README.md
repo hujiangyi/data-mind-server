@@ -132,12 +132,16 @@ Install a compiled Go/Vue server distribution:
   sudo DATAMIND_GO_VERSION=v0.1.2 bash
 ```
 
-The installer first checks Cloud AI connectivity, then selects Linux AMD64 or
-ARM64 and probes the Gitee and GitHub Release mirrors with visible progress.
+The installer first checks system dependencies, external network access, a usable
+download source, and port `3001`, then selects Linux AMD64 or ARM64. Normal
+output reports pass/fail stages without exposing the Cloud internal address or
+upstream HTTP details.
 If no DataMind Cloud API key is already available, it guides the user through
 an email/password registration, obtains a free key, and then creates the
-`datamind-go.service` systemd service. The service listens on
-`127.0.0.1:3001` by default and serves both the Vue website and server APIs.
+`datamind-go.service` systemd service. If the mailbox already exists, a matching
+Cloud password signs a fresh usable key without another registration. The
+service listens on `0.0.0.0:3001` by default and serves both the Vue website and
+server APIs.
 
 ### Windows
 
@@ -155,12 +159,16 @@ the service locally at:
 http://127.0.0.1:3001
 ```
 
+The container port is bound to `0.0.0.0:3001` by default; local access still uses
+`http://127.0.0.1:3001`.
+
 ### Nginx and HTTPS
 
 Production deployments should use an HTTPS domain and reverse proxy to the Go
 service. See:
 
 - [Nginx deployment](docs/en/nginx.md)
+- [Administrator guide](docs/en/admin-guide.md)
 - [Windows Docker](docs/en/windows-docker.md)
 - [Release mirrors](docs/en/release-mirrors.md)
 
@@ -194,13 +202,17 @@ shows:
 Choose `1` and provide:
 
 - a real mailbox that can currently receive mail;
-- a Cloud login password with at least 8 characters, entered twice.
+- a Cloud login password with at least 8 characters, entered once. The
+  installer intentionally uses visible terminal input for this password.
 
 The installer calls the Cloud registration endpoint, obtains a free
 `dm_free_...` DataMind Cloud API key, and stores it in the restricted
-server-side configuration. The key is not echoed in the terminal, and no
-manual editing of `/opt/datamind-go` or the Windows install directory is
-required. After installation, the default local endpoint is:
+server-side configuration. If the mailbox already exists, the same email and
+password are verified and a fresh key is issued. A newly obtained key is shown
+once with its server-side save location; do not share the terminal output.
+Before reporting success, the installer waits for the service process, port
+listener, health endpoint, and Cloud AI welcome capability to pass. The default
+local endpoint is:
 
 ```text
 http://127.0.0.1:3001
@@ -213,9 +225,9 @@ deployment details and must not be used to install DataMind Server.
 
 ### 2. Existing account or web registration
 
-If the mailbox is already registered, the installer tells the user to try
-another mailbox or return to the menu and enter an existing DataMind Cloud API
-key. As an alternative, open:
+If the mailbox is already registered, the installer verifies the Cloud password
+and obtains a fresh DataMind Cloud API key. If the password does not match, enter
+it again. As an alternative, open:
 
 ```text
 https://dm.iter-self.top/

@@ -17,6 +17,8 @@ docker-compose.yml
 The runtime image executes the already compiled Linux binary. It does not
 compile Go inside the user's Docker Desktop environment.
 
-On Windows, use `install/install-go.ps1`. The script selects the Linux
-container architecture, downloads the matching release bundle, asks for a
-DataMind API Key, and runs the service on `127.0.0.1:3001`.
+On Windows, use `install/install-go.ps1`. The script checks Docker Desktop,
+selects the Linux container architecture, downloads the matching release
+bundle, asks for a DataMind API Key, and runs the service on
+`0.0.0.0:3001` by default. The Compose health check uses the bundled BusyBox
+runtime and does not depend on `curl` being installed in the image.

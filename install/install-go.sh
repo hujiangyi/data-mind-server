@@ -14,9 +14,13 @@ INSTALL_DIR="${DATAMIND_GO_INSTALL_DIR:-/opt/datamind-go}"
 SERVICE_NAME="${DATAMIND_GO_SERVICE_NAME:-datamind-go}"
 CLOUD_API_BASE="${DATAMIND_CLOUD_API_BASE:-https://dm.iter-self.top/v1}"
 API_KEY="${DATAMIND_CLOUD_API_KEY:-}"
+BIND_ADDRESS="${DATAMIND_BIND_ADDRESS:-0.0.0.0}"
+PORT="${DATAMIND_PORT:-3001}"
 MCP_MASTER_KEY="${DAAS_MCP_MASTER_KEY:-}"
 MCP_SETUP_BASE_URL="${DAAS_MCP_SETUP_BASE_URL:-}"
 MCP_PUBLIC_API_BASE="${DAAS_MCP_PUBLIC_API_BASE:-}"
+API_KEY_OBTAINED=0
+INSTALL_VERBOSE="${DATAMIND_INSTALL_VERBOSE:-0}"
 CURL_EXTRA_ARGS=()
 if [[ -n "${DATAMIND_CURL_PROXY:-}" ]]; then
   CURL_EXTRA_ARGS+=(--proxy "$DATAMIND_CURL_PROXY")
@@ -30,7 +34,12 @@ fail() {
 }
 
 require_command() {
-  command -v "$1" >/dev/null 2>&1 || fail "缺少命令：$1"
+  if ! command -v "$1" >/dev/null 2>&1; then
+    if [[ "$INSTALL_VERBOSE" == "1" ]]; then
+      printf '详细信息：缺少命令 %s\n' "$1" >&2
+    fi
+    fail "安装环境不满足要求，请补齐系统依赖后重试"
+  fi
 }
 
 read_env_value() {
@@ -57,22 +66,18 @@ probe_release() {
   local base="$1"
   local root
   root="$(release_root_for "$base")"
-  printf '检查 Release 源：%s ... ' "$base"
   if command -v curl >/dev/null 2>&1; then
     if curl --fail --silent --location --ipv4 --http1.1 \
         "${CURL_EXTRA_ARGS[@]}" \
         --connect-timeout 4 --max-time 8 \
         -o /dev/null "$root/checksums.txt" 2>/dev/null; then
-      printf '可用\n'
       return 0
     fi
   else
     if wget --quiet --timeout=5 --tries=1 -O /dev/null "$root/checksums.txt"; then
-      printf '可用\n'
       return 0
     fi
   fi
-  printf '不可用\n' >&2
   return 1
 }
 
@@ -80,47 +85,46 @@ check_cloud_network() {
   local endpoint="${CLOUD_API_BASE%/}/"
   local status
 
-  printf '安装前检查 Cloud AI 网络连接：%s ... ' "$CLOUD_API_BASE"
+  printf '[3/5] 检查 Cloud AI 网络连接 ... '
   if command -v curl >/dev/null 2>&1; then
     if status="$(curl --silent --show-error --location --ipv4 --http1.1 \
         "${CURL_EXTRA_ARGS[@]}" \
         --connect-timeout 3 --max-time 8 \
         -o /dev/null -w '%{http_code}' "$endpoint" 2>/dev/null)" &&
         [[ "$status" != "000" ]]; then
-      printf '可达（HTTP %s）\n' "$status"
+      printf '通过\n'
       return 0
     fi
     if [[ -z "${DATAMIND_CURL_PROXY:-}" && "${DATAMIND_CURL_NO_PROXY:-0}" != "1" ]]; then
-      printf '默认路径失败，尝试直连 ... '
       if status="$(curl --silent --show-error --location --ipv4 --http1.1 \
           --noproxy '*' \
           --connect-timeout 3 --max-time 8 \
           -o /dev/null -w '%{http_code}' "$endpoint" 2>/dev/null)" &&
           [[ "$status" != "000" ]]; then
         CURL_EXTRA_ARGS+=(--noproxy '*')
-        printf '成功（HTTP %s）\n' "$status"
+        printf '通过\n'
         return 0
       fi
     fi
-    printf '失败\n' >&2
-    printf '提示：如需直连可设置 DATAMIND_CURL_NO_PROXY=1；如需代理可设置 DATAMIND_CURL_PROXY。\n' >&2
-    fail "无法连接 Cloud AI，请先检查 DNS、HTTPS、防火墙或代理设置"
+    printf '未通过\n' >&2
+    printf '提示：可以设置 DATAMIND_CURL_NO_PROXY=1 使用直连，或设置 DATAMIND_CURL_PROXY 使用指定代理。\n' >&2
+    fail "安装环境不满足要求：外部网络不可用"
   fi
 
   if wget --quiet --timeout=5 --tries=1 -O /dev/null "$endpoint"; then
-    printf '可达\n'
+    printf '通过\n'
     return 0
   fi
-  printf '失败\n' >&2
-  fail "无法连接 Cloud AI，请先检查 DNS、HTTPS、防火墙或代理设置"
+  printf '未通过\n' >&2
+  fail "安装环境不满足要求：外部网络不可用"
 }
 
 select_release_base() {
   if [[ -n "$RELEASE_BASE" ]]; then
     if ! probe_release "$RELEASE_BASE"; then
-      fail "指定的 Release 源不可达：$RELEASE_BASE"
+      fail "安装环境不满足要求：指定的下载源不可用"
     fi
-    printf '使用指定 Release 源：%s\n' "$RELEASE_BASE"
+    printf '[4/5] 检查 Release 下载源 ... 通过（已指定）\n'
     return 0
   fi
 
@@ -134,6 +138,7 @@ select_release_base() {
       RELEASE_BASE="$GITEE_RELEASE_BASE"
       ;;
     auto)
+      printf '[4/5] 检查 Release 下载源 ... '
       for source in gitee github; do
         if [[ "$source" == "gitee" ]]; then
           candidate="$GITEE_RELEASE_BASE"
@@ -142,20 +147,21 @@ select_release_base() {
         fi
         if probe_release "$candidate"; then
           RELEASE_BASE="$candidate"
-          printf '自动选择 Release 源：%s (%s)\n' "$source" "$RELEASE_BASE"
+          printf '通过（%s）\n' "$source"
           return 0
         fi
       done
-      fail "Gitee 和 GitHub Release 源均不可达；可设置 DATAMIND_RELEASE_BASE 指定镜像地址"
+      printf '未通过\n' >&2
+      fail "安装环境不满足要求：没有可用的下载源"
       ;;
     *)
-      fail "DATAMIND_RELEASE_SOURCE 必须是 auto、github 或 gitee"
+      fail "DATAMIND_RELEASE_SOURCE 只能是 auto、github 或 gitee"
       ;;
   esac
   if ! probe_release "$RELEASE_BASE"; then
-    fail "指定的 Release 源不可达：$RELEASE_BASE"
+    fail "安装环境不满足要求：指定的下载源不可用"
   fi
-  printf '使用 Release 源：%s\n' "$RELEASE_BASE"
+  printf '[4/5] 检查 Release 下载源 ... 通过\n'
 }
 
 download() {
@@ -285,23 +291,60 @@ json_data_value() {
   fi
 }
 
-json_error_value() {
-  local file="$1"
-  if command -v jq >/dev/null 2>&1; then
-    jq -r '.error // empty' "$file" 2>/dev/null || true
-  else
-    sed -nE 's/.*"error":[[:space:]]*"([^"]*)".*/\1/p' "$file" | head -1
+issue_existing_cloud_key() {
+  local email="$1"
+  local password="$2"
+  local payload
+  local response_file
+  local status
+  local existing_key
+  local key_kind
+  local key_url="${CLOUD_API_BASE%/}/cloud/auth/installer-key"
+
+  payload="$(printf '{"email":"%s","password":"%s"}' "$(json_escape "$email")" "$(json_escape "$password")")"
+  response_file="$(mktemp "${TMPDIR:-/tmp}/datamind-cloud-key.XXXXXX")"
+  if ! status="$(printf '%s' "$payload" | curl --silent --show-error --location --ipv4 --http1.1 \
+      "${CURL_EXTRA_ARGS[@]}" \
+      --retry 2 --retry-delay 1 --connect-timeout 10 --max-time 30 \
+      -H 'content-type: application/json' \
+      --data-binary @- -o "$response_file" -w '%{http_code}' "$key_url")"; then
+    rm -f "$response_file"
+    printf '无法完成账号验证，请检查网络或稍后重试。\n' >&2
+    return 1
   fi
+
+  existing_key="$(json_data_value "$response_file" key)"
+  key_kind="$(json_data_value "$response_file" keyKind)"
+  rm -f "$response_file"
+
+  case "$status" in
+    200|201)
+      if [[ "$existing_key" != dm_free_* && "$existing_key" != dm_member_* ]]; then
+        printf '账号验证成功，但没有取得有效的 DataMind API Key，请稍后重试。\n' >&2
+        return 1
+      fi
+      API_KEY="$existing_key"
+      API_KEY_OBTAINED=1
+      printf '邮箱已注册，密码验证通过，已取得 DataMind API Key（%s）。\n' "${key_kind:-free}"
+      return 0
+      ;;
+    401|403)
+      printf '邮箱或 Cloud 登录密码不匹配，请重新输入。\n' >&2
+      return 1
+      ;;
+    *)
+      printf '账号验证未完成，请检查网络或稍后重试。\n' >&2
+      return 1
+      ;;
+  esac
 }
 
 register_free_cloud_key() {
   local email
   local password
-  local confirmation
   local payload
   local response_file
   local status
-  local error_code
   local registered_key
   local key_kind
   local register_url="${CLOUD_API_BASE%/}/cloud/auth/register"
@@ -323,16 +366,10 @@ register_free_cloud_key() {
     return 1
   fi
 
-  read -r -s -p '设置 Cloud 登录密码（至少 8 位）： ' password < /dev/tty || return 1
-  printf '\n'
-  read -r -s -p '确认 Cloud 登录密码： ' confirmation < /dev/tty || return 1
+  read -r -p '设置 Cloud 登录密码（至少 8 位，可见输入）： ' password < /dev/tty || return 1
   printf '\n'
   if [[ "${#password}" -lt 8 ]]; then
     printf '密码至少需要 8 位，请重新注册。\n' >&2
-    return 1
-  fi
-  if [[ "$password" != "$confirmation" ]]; then
-    printf '两次密码不一致，请重新注册。\n' >&2
     return 1
   fi
 
@@ -350,7 +387,6 @@ register_free_cloud_key() {
 
   registered_key="$(json_data_value "$response_file" key)"
   key_kind="$(json_data_value "$response_file" keyKind)"
-  error_code="$(json_error_value "$response_file")"
   rm -f "$response_file"
 
   case "$status" in
@@ -360,20 +396,20 @@ register_free_cloud_key() {
         return 1
       fi
       API_KEY="$registered_key"
+      API_KEY_OBTAINED=1
       printf 'Cloud 账号注册成功，已获取免费 DataMind API Key（%s）。\n' "${key_kind:-free}"
       return 0
       ;;
     400)
-      printf 'Cloud 注册资料无效（%s），请检查邮箱和密码后重试。\n' "${error_code:-invalid_request}" >&2
+      printf 'Cloud 注册资料无效，请检查邮箱和密码后重试。\n' >&2
       return 1
       ;;
     409)
-      printf '该邮箱已经注册，请换一个邮箱，或返回菜单输入已有 API Key。\n' >&2
-      return 1
+      issue_existing_cloud_key "$email" "$password"
+      return $?
       ;;
     *)
-      printf 'Cloud 注册失败（HTTP %s，%s），请稍后重试或输入已有 API Key。\n' \
-        "$status" "${error_code:-request_failed}" >&2
+      printf 'Cloud 注册未完成，请检查网络或稍后重试，也可以输入已有 DataMind API Key。\n' >&2
       return 1
       ;;
   esac
@@ -433,18 +469,175 @@ validate_cloud_api_key() {
     fail "DataMind API Key 格式不正确；请使用 Cloud 注册后获得的 dm_free_... 或会员 Key"
 }
 
+port_is_listening() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnH 2>/dev/null |
+      awk -v port="$PORT" '$4 ~ (":" port "$") {found=1} END {exit !found}'
+    return $?
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1
+    return $?
+  fi
+  return 2
+}
+
+check_port_available() {
+  local port_status=0
+  printf '[5/5] 检查服务端口 ... '
+  port_is_listening || port_status=$?
+  if [[ "$port_status" -eq 0 ]]; then
+    if systemctl is-active --quiet "$SERVICE_NAME.service"; then
+      printf '通过（已有 DataMind 服务）\n'
+      return 0
+    fi
+    printf '未通过\n' >&2
+    fail "服务端口已被占用，请停止占用端口的程序后重试"
+  fi
+  if [[ "$port_status" -eq 2 ]]; then
+    printf '未通过\n' >&2
+    fail "无法检查服务端口，请安装 ss 或 lsof 后重试"
+  fi
+  printf '通过（%s:%s）\n' "$BIND_ADDRESS" "$PORT"
+}
+
+check_install_environment() {
+  printf '检查安装环境\n'
+  printf '[1/5] 检查系统权限和架构 ... 通过（Linux %s）\n' "$ARCH"
+  printf '[2/5] 检查必要依赖 ... '
+  require_command tar
+  require_command awk
+  require_command systemctl
+  require_command openssl
+  require_command curl
+  if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
+    fail "安装环境不满足要求，请补齐系统依赖后重试"
+  fi
+  if ! command -v ss >/dev/null 2>&1 && ! command -v lsof >/dev/null 2>&1; then
+    fail "安装环境不满足要求，请安装 ss 或 lsof 后重试"
+  fi
+  printf '通过\n'
+  check_cloud_network
+  select_release_base
+  check_port_available
+}
+
+check_service_ready() {
+  systemctl is-active --quiet "$SERVICE_NAME.service" || return 1
+  port_is_listening || return 1
+  curl --fail --silent --show-error \
+    --connect-timeout 2 --max-time 5 \
+    -o /dev/null "http://127.0.0.1:$PORT/health" 2>/dev/null
+}
+
+wait_for_service_ready() {
+  local attempt
+  for attempt in $(seq 1 45); do
+    if check_service_ready; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+check_cloud_ai_capability() {
+  local payload
+  local response_file
+  local status
+  local message
+  local endpoint="${CLOUD_API_BASE%/}/cloud/ai/welcome"
+
+  printf '检查 Cloud AI 能力 ... '
+  payload='{"stream":false}'
+  response_file="$(mktemp "${TMPDIR:-/tmp}/datamind-cloud-welcome.XXXXXX")"
+  if ! status="$(printf '%s' "$payload" | curl --silent --show-error --location --ipv4 --http1.1 \
+      "${CURL_EXTRA_ARGS[@]}" \
+      --retry 1 --connect-timeout 8 --max-time 45 \
+      -H "Authorization: Bearer $API_KEY" \
+      -H 'content-type: application/json' \
+      --data-binary @- -o "$response_file" -w '%{http_code}' "$endpoint" 2>/dev/null)"; then
+    rm -f "$response_file"
+    printf '未通过\n' >&2
+    return 1
+  fi
+  if [[ "$status" != 2* ]]; then
+    rm -f "$response_file"
+    printf '未通过\n' >&2
+    return 1
+  fi
+  if command -v jq >/dev/null 2>&1; then
+    message="$(jq -r '.data.message // empty' "$response_file" 2>/dev/null || true)"
+  else
+    message="$(sed -nE 's/.*"message":[[:space:]]*"([^"]*)".*/\1/p' "$response_file" | head -1)"
+  fi
+  rm -f "$response_file"
+  if [[ -z "$message" ]]; then
+    printf '未通过\n' >&2
+    return 1
+  fi
+  message="$(printf '%s' "$message" | tr '\r\n' ' ' | tr -d '\000-\037\177')"
+  printf '通过，AI 欢迎语：%s\n' "$message"
+  return 0
+}
+
+show_obtained_api_key() {
+  if [[ "$API_KEY_OBTAINED" -eq 1 ]]; then
+    printf '\nDataMind Cloud API Key（请立即保存）：\n%s\n' "$API_KEY"
+    printf '服务端保存位置：%s\n' "$ENV_FILE"
+    printf '提醒：终端记录可能包含此 Key，请勿分享或提交到公开仓库。\n'
+  fi
+}
+
+configure_runtime_config() {
+  local config_file="$1"
+  local temp_file
+  [[ -f "$config_file" ]] || fail "Release 缺少运行配置"
+  grep -q '^server:[[:space:]]*$' "$config_file" ||
+    fail "运行配置缺少 server 设置"
+
+  temp_file="${config_file}.tmp.$$"
+  awk -v desired_host="$BIND_ADDRESS" -v desired_port="$PORT" '
+    function emit_missing() {
+      if (in_server && !host_done) print "  host: \"" desired_host "\""
+      if (in_server && !port_done) print "  port: " desired_port
+    }
+    /^server:[[:space:]]*$/ {
+      in_server = 1
+      host_done = 0
+      port_done = 0
+      print
+      next
+    }
+    {
+      if (in_server && $0 !~ /^[[:space:]]/ && $0 !~ /^[[:space:]]*$/) {
+        emit_missing()
+        in_server = 0
+      }
+      if (in_server && $0 ~ /^[[:space:]]+host:[[:space:]]*/) {
+        print "  host: \"" desired_host "\""
+        host_done = 1
+        next
+      }
+      if (in_server && $0 ~ /^[[:space:]]+port:[[:space:]]*/) {
+        print "  port: " desired_port
+        port_done = 1
+        next
+      }
+      print
+    }
+    END {
+      emit_missing()
+    }
+  ' "$config_file" > "$temp_file"
+  mv "$temp_file" "$config_file"
+}
+
 [[ "$EUID" -eq 0 ]] || fail "Linux Go 服务需要 root 权限，请使用 sudo 或 root 执行"
 [[ "$CLOUD_API_BASE" =~ ^https?://[^[:space:]]+$ ]] || fail "DATAMIND_CLOUD_API_BASE 必须是 HTTP 或 HTTPS 地址"
-
-require_command tar
-require_command awk
-require_command systemctl
-if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-  fail "缺少 curl 或 wget"
-fi
-if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
-  fail "缺少 sha256sum 或 shasum"
-fi
+[[ "$BIND_ADDRESS" =~ ^[A-Za-z0-9_.:-]+$ ]] || fail "DATAMIND_BIND_ADDRESS 格式不正确"
+[[ "$PORT" =~ ^[0-9]+$ && "$PORT" -ge 1 && "$PORT" -le 65535 ]] ||
+  fail "DATAMIND_PORT 必须是 1 到 65535 之间的端口"
 
 case "$(uname -m)" in
   x86_64|amd64) ARCH="amd64" ;;
@@ -453,8 +646,7 @@ case "$(uname -m)" in
 esac
 
 ASSET="datamind-go-linux-$ARCH.tar.gz"
-check_cloud_network
-select_release_base
+check_install_environment
 
 ENV_FILE="$INSTALL_DIR/.env"
 if [[ -z "$API_KEY" ]]; then
@@ -486,7 +678,6 @@ if [[ -z "$MCP_MASTER_KEY" ]]; then
   MCP_MASTER_KEY="$(read_env_value "$ENV_FILE" "DAAS_MCP_MASTER_KEY")"
 fi
 if [[ -z "$MCP_MASTER_KEY" ]]; then
-  require_command openssl
   MCP_MASTER_KEY="MKEY:$(openssl rand -base64 32 | tr -d '\n')"
 fi
 validate_secret "DAAS_MCP_MASTER_KEY" "$MCP_MASTER_KEY"
@@ -515,6 +706,7 @@ if [[ ! -f "$INSTALL_DIR/configs/config.yaml" ]]; then
   mkdir -p "$INSTALL_DIR/configs"
   cp "$EXTRACT_ROOT/configs/config.yaml" "$INSTALL_DIR/configs/config.yaml"
 fi
+configure_runtime_config "$INSTALL_DIR/configs/config.yaml"
 rm -rf "$INSTALL_DIR/bin" "$INSTALL_DIR/migrations"
 cp -R "$EXTRACT_ROOT/bin" "$INSTALL_DIR/bin"
 cp -R "$EXTRACT_ROOT/migrations" "$INSTALL_DIR/migrations"
@@ -529,6 +721,8 @@ fi
 umask 077
 ENV_TMP="$TMP_ROOT/.env"
 {
+  printf 'DATAMIND_BIND_ADDRESS=%s\n' "$BIND_ADDRESS"
+  printf 'DATAMIND_PORT=%s\n' "$PORT"
   printf 'DATAMIND_CLOUD_API_BASE=%s\n' "$CLOUD_API_BASE"
   printf 'DATAMIND_CLOUD_API_KEY=%s\n' "$API_KEY"
   printf 'DAAS_MCP_MASTER_KEY=%s\n' "$MCP_MASTER_KEY"
@@ -540,6 +734,7 @@ install -m 0600 "$ENV_TMP" "$ENV_FILE"
 chown -R datamind:datamind "$INSTALL_DIR"
 chmod 0750 "$INSTALL_DIR"
 chmod 0600 "$ENV_FILE"
+show_obtained_api_key
 
 cat > "/etc/systemd/system/$SERVICE_NAME.service" <<UNIT
 [Unit]
@@ -564,20 +759,36 @@ WantedBy=multi-user.target
 UNIT
 
 systemctl daemon-reload
-systemctl enable --now "$SERVICE_NAME.service"
+if ! systemctl enable --now "$SERVICE_NAME.service"; then
+  fail "DataMind 服务启动失败，请检查系统服务日志"
+fi
 
-for attempt in $(seq 1 30); do
-  if curl --fail --silent --show-error http://127.0.0.1:3001/health >/dev/null; then
-    printf 'DataMind Go 安装成功\n'
-    printf '安装目录：%s\n' "$INSTALL_DIR"
-    printf '服务名称：%s.service\n' "$SERVICE_NAME"
-    printf '服务地址：http://127.0.0.1:3001\n'
-    printf '状态检查：systemctl status %s.service\n' "$SERVICE_NAME"
-    exit 0
-  fi
-  sleep 2
-done
+printf '启动并验证 DataMind 服务 ...\n'
+if ! wait_for_service_ready; then
+  printf '未通过：服务没有在规定时间内完整启动。\n' >&2
+  printf '请执行：systemctl status %s.service\n' "$SERVICE_NAME" >&2
+  printf '请执行：journalctl -u %s.service -n 100 --no-pager\n' "$SERVICE_NAME" >&2
+  printf '卸载命令：{ curl -fsSL https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.sh || curl -fsSL https://gitee.com/hujiangyi/data-mind-server/raw/main/install/uninstall-go.sh; } | sudo bash\n' >&2
+  fail "DataMind 服务启动检查失败"
+fi
+printf '  服务进程状态：通过\n'
+printf '  网络监听状态：通过（%s:%s）\n' "$BIND_ADDRESS" "$PORT"
+printf '  网站和 API 健康检查：通过\n'
 
-systemctl --no-pager --full status "$SERVICE_NAME.service" || true
-journalctl --no-pager -u "$SERVICE_NAME.service" -n 100 || true
-fail "DataMind Go 健康检查失败：http://127.0.0.1:3001/health"
+if ! check_cloud_ai_capability; then
+  printf '提示：DataMind 服务已经启动，但 Cloud AI 能力检查未通过。\n' >&2
+  printf '请先检查 Cloud 账号额度和网络，再执行：systemctl restart %s.service\n' "$SERVICE_NAME" >&2
+  printf '卸载命令：{ curl -fsSL https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.sh || curl -fsSL https://gitee.com/hujiangyi/data-mind-server/raw/main/install/uninstall-go.sh; } | sudo bash\n' >&2
+  exit 1
+fi
+
+printf '\nDataMind Go 安装成功\n'
+printf '安装目录：%s\n' "$INSTALL_DIR"
+printf '服务名称：%s.service\n' "$SERVICE_NAME"
+printf '服务监听：%s:%s\n' "$BIND_ADDRESS" "$PORT"
+printf '本机访问：http://127.0.0.1:%s\n' "$PORT"
+printf '状态检查：systemctl status %s.service\n' "$SERVICE_NAME"
+printf '卸载命令：{ curl -fsSL https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.sh || curl -fsSL https://gitee.com/hujiangyi/data-mind-server/raw/main/install/uninstall-go.sh; } | sudo bash\n'
+printf '\n管理员操作指南：\n'
+printf 'GitHub：https://github.com/hujiangyi/data-mind-server/blob/main/docs/zh-CN/admin-guide.md\n'
+printf 'Gitee： https://gitee.com/hujiangyi/data-mind-server/blob/main/docs/zh-CN/admin-guide.md\n'
