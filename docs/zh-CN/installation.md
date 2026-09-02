@@ -83,8 +83,8 @@ Cloud 注册接口，取得 `dm_free_...` Key，并以受限权限写入本地�
 
 如果邮箱已经注册，可以选择另一个邮箱，或者返回菜单输入已有 Key。也可以
 先访问 `https://dm.iter-self.top/` 完成注册，再把网页显示的 Key 粘贴到
-安装器。注册密码仅用于 Cloud 登录，不能代替 API Key；Agnes 上游
-`cpk_...` Key 也不能作为 DataMind Cloud API Key。
+安装器。注册密码仅用于 Cloud 登录，不能代替 API Key；其他 Cloud 服务
+凭据属于内部部署信息，也不能作为 DataMind Cloud API Key。
 
 ### 自动化安装
 

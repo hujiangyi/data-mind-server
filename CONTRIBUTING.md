@@ -21,7 +21,7 @@ test: cover data-scope enforcement
 - Explain the behavior change and security impact.
 - Add or update tests for data access and permission changes.
 - Do not include credentials, private architecture documents, customer data,
-  provider keys, or generated release archives.
+  Cloud service credentials, or generated release archives.
 - For installer changes, validate shell syntax and review both Linux and
   Windows execution paths.
 - For documentation changes, check both language versions and every relative

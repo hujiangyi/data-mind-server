@@ -77,4 +77,4 @@ Windows 用户不需要安装 Go、MinGW，也不需要 Windows 原生 Go 二进
 & .\uninstall-go.ps1 -PurgeData
 ```
 
-Docker 容器继续使用与 Linux 原生安装相同的 Go 到 Cloud API 契约。
+Docker 容器继续使用与 Linux 原生安装相同的 Go 到 Cloud AI API 契约。

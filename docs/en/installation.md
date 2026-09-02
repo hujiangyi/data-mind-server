@@ -93,8 +93,8 @@ If the mailbox is already registered, use another mailbox or return to the
 menu and enter an existing key. You can also register first at
 `https://dm.iter-self.top/` and paste the key shown by the website into the
 installer. The registration password is only for Cloud sign-in and cannot
-replace the API key. An upstream Agnes `cpk_...` key is not a DataMind Cloud
-API key.
+replace the API key. Other Cloud service credentials are internal deployment
+details and are not DataMind Cloud API keys.
 
 ### Automated installation
 

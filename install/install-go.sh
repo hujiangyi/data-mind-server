@@ -333,7 +333,7 @@ obtain_cloud_api_key() {
 
   while true; do
     printf '\n未检测到 DataMind Cloud API Key。\n'
-    printf 'DataMind Server 需要该 Key 访问 Cloud AI；它不是 Agnes 上游 API Key。\n'
+    printf 'DataMind Server 需要该 Key 访问 Cloud AI；请勿输入其他服务的内部密钥。\n'
     printf '请选择操作：\n'
     printf '  1) 自动注册免费账号并生成 Key（推荐）\n'
     printf '  2) 输入已有 DataMind API Key\n'

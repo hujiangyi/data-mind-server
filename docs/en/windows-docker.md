@@ -80,5 +80,5 @@ Remove the container and local data:
 & .\uninstall-go.ps1 -PurgeData
 ```
 
-The Docker container uses the same Go-to-Cloud API contract as the native
+The Docker container uses the same Go-to-Cloud AI API contract as the native
 Linux installation.

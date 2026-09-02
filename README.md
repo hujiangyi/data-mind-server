@@ -207,8 +207,8 @@ http://127.0.0.1:3001
 
 The mailbox must be real and able to receive mail for future Cloud login and
 account management. The registration password is only for Cloud sign-in; it
-cannot replace the API key. An upstream Agnes `cpk_...` key is an internal
-Cloud provider credential and must not be used to install DataMind Server.
+cannot replace the API key. Other Cloud service credentials are internal
+deployment details and must not be used to install DataMind Server.
 
 ### 2. Existing account or web registration
 

@@ -15,9 +15,9 @@ member key when it is active.
 
 Use a real mailbox that can receive mail and a password with at least
 8 characters. The mailbox is used for future Cloud sign-in and account
-management. The registration password cannot replace the API key, and an
-upstream Agnes `cpk_...` key is an internal provider credential rather than
-a DataMind Cloud API key.
+management. The registration password cannot replace the API key. Other Cloud
+service credentials are internal deployment details rather than DataMind Cloud
+API keys.
 
 ## Configure profiles
 

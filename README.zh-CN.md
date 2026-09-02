@@ -182,8 +182,8 @@ http://127.0.0.1:3001
 ```
 
 邮箱必须真实且可以正常收信，用于后续账号登录和账号管理。注册密码只
-用于 Cloud 账号登录，不能代替 API Key。Agnes 上游 `cpk_...` Key 属于
-Cloud 内部资源，不能用于安装 DataMind Server。
+用于 Cloud 账号登录，不能代替 API Key。其他 Cloud 服务凭据属于内部部署
+信息，不能用于安装 DataMind Server。
 
 ### 2. 已有账号或网页注册
 

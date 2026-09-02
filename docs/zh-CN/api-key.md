@@ -10,8 +10,8 @@ AI 工具的配置。
 Key 会继续保留，会员 Key 有效时 Go CLI 默认优先使用会员 Key。
 
 注册时请使用真实、可以正常收信的邮箱和至少 8 位密码。邮箱用于后续
-Cloud 登录和账号管理；注册密码不能代替 API Key。Agnes 上游 `cpk_...`
-Key 属于 Cloud 内部资源，不能直接配置到 Go 服务。
+Cloud 登录和账号管理；注册密码不能代替 API Key。其他 Cloud 服务凭据属于
+内部部署信息，不能直接配置到 Go 服务。
 
 ## 配置 Key profile
 
