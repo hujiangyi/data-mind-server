@@ -8,10 +8,41 @@ DataMind keeps database credentials on the server and exposes only server-valida
 
 Open the DataMind Server website and go to the sign-in page.
 
-- Use the administrator account supplied for the deployment;
-- For a new private deployment, confirm the initial administrator account from the delivery materials;
+- For a fresh installation, use `admin` with the initial password `123456`;
+- Complete the forced first-sign-in password change and set an 8 to 16 character formal password;
 - Never place an administrator password in scripts, issues, release notes, or chat messages;
 - After the first sign-in, review the administrator email and password policy in System Settings.
+
+The fixed password `123456` is only a temporary initial password. Administrator-
+created accounts and administrator password resets use the same initial password
+and require a first-sign-in change. Self-registered accounts must also complete
+the first-sign-in change, even though they choose their initial registration
+password. Until the change is complete, protected business operations are
+blocked.
+
+If the administrator needs to recover an account, use **User Management ->
+Edit User -> Reset Initial Password**. To administer an account from the
+server console:
+
+```bash
+sudo /opt/datamind-go/bin/daas-go \
+  -config /opt/datamind-go/configs/config.yaml \
+  -reset-password \
+  -username <account-name>
+```
+
+This restores `123456` and forces the next sign-in to change it. To set a final
+password directly:
+
+```bash
+sudo /opt/datamind-go/bin/daas-go \
+  -config /opt/datamind-go/configs/config.yaml \
+  -change-password \
+  -username <account-name>
+```
+
+The console accepts one visible line and validates the final password as 8 to
+16 characters. No service restart is required.
 
 The Cloud account and local DataMind Server employee account are separate identities:
 
@@ -70,14 +101,18 @@ Do not expand database privileges just to bypass a synchronization error. Fix th
 
 Path: **User Management -> Add User**.
 
-Enter:
+Enter the account profile:
 
 - username;
-- an 8 to 16 character login password;
 - real name;
 - employee number;
 - a reachable email address;
 - role and notes.
+
+The system supplies the fixed initial password `123456`; do not create a
+separate password for the employee in the form. Tell the employee to sign in
+once with that initial password and complete the forced password-change page.
+The account list shows whether the first password change is still pending.
 
 Roles such as Administrator, Data Administrator, API Operator, Data Quality Manager, Ordinary User, and Business User describe responsibilities. The actual data boundary should still be defined through permission groups and resource grants; do not treat a role label as the complete security policy.
 
@@ -88,6 +123,10 @@ When an employee leaves, changes roles, or has a compromised account:
 - review its historical access records;
 - revoke related data APIs when necessary;
 - do not only rename the account while leaving its grants in place.
+
+If an employee forgets the formal password, reset the account to the fixed
+initial password from the edit panel. The employee must then complete the
+first-sign-in change again.
 
 ## 5. Create permission subjects and grants
 

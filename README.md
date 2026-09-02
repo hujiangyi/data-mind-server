@@ -162,6 +162,28 @@ http://127.0.0.1:3001
 The container port is bound to `0.0.0.0:3001` by default; local access still uses
 `http://127.0.0.1:3001`.
 
+### Web account and first sign-in
+
+For a fresh installation, the built-in administrator account is:
+
+```text
+username: admin
+initial password: 123456
+```
+
+The initial password is intentionally fixed and temporary. The first sign-in
+must go through the password-change page and set a formal password of 8 to 16
+characters before the administration pages can be used.
+
+Administrator-created employee accounts and administrator password resets also
+use the fixed initial password `123456`. The employee must change it at the
+first sign-in. Self-registered users choose an initial password during
+registration, but they must also replace it at their first sign-in. Until that
+change is complete, protected server business routes remain blocked.
+
+The web account password is separate from the DataMind Cloud API key used by
+the Go service. Do not paste one in place of the other.
+
 ### Nginx and HTTPS
 
 Production deployments should use an HTTPS domain and reverse proxy to the Go

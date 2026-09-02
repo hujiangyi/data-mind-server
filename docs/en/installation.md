@@ -86,6 +86,52 @@ To install an explicit version:
 The Windows installation does not require Go, MinGW, or a native Windows Go
 build.
 
+## Web account and first sign-in
+
+After a fresh installation, open the Web management entrypoint shown by the
+installer. The built-in administrator account is:
+
+```text
+username: admin
+initial password: 123456
+```
+
+The first sign-in is intentionally incomplete. DataMind redirects the account
+to a password-change page and requires a formal password with 8 to 16
+characters before allowing access to business pages.
+
+Administrator-created accounts and accounts reset by an administrator also
+receive the fixed initial password `123456` and must change it at first sign-in.
+Self-registered accounts choose an initial password during registration, but
+they follow the same first-sign-in password-change step. Until the step is
+complete, protected business routes are denied.
+
+For an administrator to reset an account, use **User Management -> Edit User ->
+Reset Initial Password**. The operation restores `123456` and marks the account
+as requiring a first-sign-in change.
+
+For server-side recovery or scripted administration:
+
+```bash
+sudo /opt/datamind-go/bin/daas-go \
+  -config /opt/datamind-go/configs/config.yaml \
+  -reset-password \
+  -username admin
+```
+
+To set a final password directly from the server console:
+
+```bash
+sudo /opt/datamind-go/bin/daas-go \
+  -config /opt/datamind-go/configs/config.yaml \
+  -change-password \
+  -username admin
+```
+
+The new console password must be 8 to 16 characters. These commands update
+the SQLite account store and do not require a service restart. The Web account
+password is separate from `DATAMIND_CLOUD_API_KEY`.
+
 ## Cloud registration and configuration
 
 The Go service needs these server-side values to use the Cloud AI relay:

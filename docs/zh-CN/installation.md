@@ -79,6 +79,52 @@ http://127.0.0.1:3001
 
 Windows 安装不需要 Go、MinGW 或 Windows 原生 Go 构建环境。
 
+## Web 管理账号和首次登录
+
+安装完成后，请打开安装器显示的 Web 管理入口。全新安装的内置管理员
+账号为：
+
+```text
+用户名：admin
+初始密码：123456
+```
+
+第一次登录并不代表已经完成账号启用。系统会自动跳转到首次改密页面，
+必须设置一个 8～16 位的正式密码，完成后才能进入业务管理页面。
+
+管理员创建的账号以及管理员重置密码后的账号，也统一使用固定初始密码
+`123456`，用户第一次登录必须改成自己的 8～16 位正式密码。普通用户
+自助注册时可以设置登录初始密码，但第一次登录同样必须重新设置正式密码。
+改密完成前，受保护的业务接口都会被拒绝。
+
+管理员在网页中重置账号：
+
+**用户管理 → 编辑用户 → 重置初始密码**
+
+重置后账号恢复为 `123456`，并重新进入首次登录改密状态。
+
+如果管理员无法进入网页，也可以在服务器命令行执行：
+
+```bash
+sudo /opt/datamind-go/bin/daas-go \
+  -config /opt/datamind-go/configs/config.yaml \
+  -reset-password \
+  -username admin
+```
+
+直接在服务器命令行给账号设置正式密码：
+
+```bash
+sudo /opt/datamind-go/bin/daas-go \
+  -config /opt/datamind-go/configs/config.yaml \
+  -change-password \
+  -username admin
+```
+
+命令行设置的正式密码必须为 8～16 位。以上命令直接更新 SQLite 账号
+数据，不需要重启服务。Web 管理账号密码与 `DATAMIND_CLOUD_API_KEY`
+是两套不同信息，不能相互替代。
+
 ## Cloud 注册和配置
 
 Go 服务访问 Cloud AI 中转至少需要以下服务端配置：
