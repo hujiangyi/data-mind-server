@@ -41,13 +41,13 @@ http://127.0.0.1:3001
 安装指定版本：
 
 ```powershell
-& .\install-go.ps1 -Version v0.1.4
+& .\install-go.ps1 -Version v0.1.5
 ```
 
 安装器默认先探测 Gitee，再探测 GitHub。需要指定源时可以执行：
 
 ```powershell
-& .\install-go.ps1 -Version v0.1.4 -ReleaseSource gitee
+& .\install-go.ps1 -Version v0.1.5 -ReleaseSource gitee
 ```
 
 也可以使用环境变量 `DATAMIND_RELEASE_SOURCE` 和

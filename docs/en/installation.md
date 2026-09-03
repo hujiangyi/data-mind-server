@@ -26,7 +26,7 @@ Cloud API key is available, the installer guides the user through registration:
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.4 bash
+  sudo DATAMIND_GO_VERSION=v0.1.5 bash
 ```
 
 When an existing installation is detected, the installer asks whether to update
@@ -36,10 +36,10 @@ replacing files and then force-restarts the systemd service. The mode can also
 be selected explicitly:
 
 ```bash
-sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.4 \
+sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.5 \
   bash ./install/install-go.sh
 
-sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.4 \
+sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.5 \
   bash ./install/install-go.sh
 ```
 
@@ -67,14 +67,14 @@ direct connection if that path fails. If the server has a broken proxy
 configuration, direct mode can also be selected explicitly:
 
 ```bash
-sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.5 bash ./install/install-go.sh
 ```
 
 If the server must use a specific proxy, set:
 
 ```bash
 sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
-  DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
+  DATAMIND_GO_VERSION=v0.1.5 bash ./install/install-go.sh
 ```
 
 When the network check fails, the installer exits before downloading the
@@ -100,7 +100,7 @@ http://127.0.0.1:3001
 To install an explicit version:
 
 ```powershell
-& .\install-go.ps1 -Version v0.1.4
+& .\install-go.ps1 -Version v0.1.5
 ```
 
 The Windows installation does not require Go, MinGW, or a native Windows Go
