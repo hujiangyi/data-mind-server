@@ -10,7 +10,8 @@ services:
       - "${DATAMIND_BIND_ADDRESS:-0.0.0.0}:${DATAMIND_PORT:-3001}:3001"
     volumes:
       - ./data:/opt/datamind/data
-      - ./configs:/opt/datamind/configs:ro
+      - ./configs:/opt/datamind/configs
+      - ./backups:/opt/datamind/backups
     restart: unless-stopped
     healthcheck:
       test:

@@ -816,8 +816,10 @@ verify_checksum "$ARCHIVE" "$ASSET" "$CHECKSUMS"
 mkdir -p "$EXTRACT_ROOT"
 tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
 [[ -x "$EXTRACT_ROOT/bin/daas-go" ]] || fail "Release 缺少 bin/daas-go"
+[[ -x "$EXTRACT_ROOT/bin/datamind-upgrade" ]] || fail "Release 缺少 bin/datamind-upgrade，拒绝执行未带升级工具的 Release"
 [[ -f "$EXTRACT_ROOT/configs/config.yaml" ]] || fail "Release 缺少 configs/config.yaml"
 [[ -d "$EXTRACT_ROOT/migrations" ]] || fail "Release 缺少 migrations 目录"
+[[ -f "$EXTRACT_ROOT/migration-manifest.json" ]] || fail "Release 缺少 migration-manifest.json，拒绝执行未校验迁移链的 Release"
 
 if [[ "$INSTALL_MODE" == "update" ]]; then
   printf '停止旧版 DataMind Go 服务，准备切换到 %s ...\n' "$VERSION"
@@ -831,12 +833,23 @@ if [[ ! -f "$INSTALL_DIR/configs/config.yaml" ]]; then
   cp "$EXTRACT_ROOT/configs/config.yaml" "$INSTALL_DIR/configs/config.yaml"
 fi
 configure_runtime_config "$INSTALL_DIR/configs/config.yaml"
+mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp"
+mkdir -p "$INSTALL_DIR/backups"
+printf '执行 DataMind %s 数据库和配置升级 ...\n' "$VERSION"
+"$EXTRACT_ROOT/bin/datamind-upgrade" \
+  -db "$INSTALL_DIR/data/maicong.db" \
+  -migrations "$EXTRACT_ROOT/migrations" \
+  -manifest "$EXTRACT_ROOT/migration-manifest.json" \
+  -config "$INSTALL_DIR/configs/config.yaml" \
+  -backup-dir "$INSTALL_DIR/backups" \
+  -version "$VERSION" ||
+  fail "DataMind 数据库或配置升级失败，未切换新版本；请检查 backups 和迁移错误"
 rm -rf "$INSTALL_DIR/bin" "$INSTALL_DIR/migrations"
 cp -R "$EXTRACT_ROOT/bin" "$INSTALL_DIR/bin"
 cp -R "$EXTRACT_ROOT/migrations" "$INSTALL_DIR/migrations"
-mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp"
+cp "$EXTRACT_ROOT/migration-manifest.json" "$INSTALL_DIR/migration-manifest.json"
 printf '%s\n' "$VERSION" > "$INSTALL_DIR/VERSION"
-chmod 0755 "$INSTALL_DIR/bin/daas-go"
+chmod 0755 "$INSTALL_DIR/bin/daas-go" "$INSTALL_DIR/bin/datamind-upgrade"
 
 if ! id -u datamind >/dev/null 2>&1; then
   useradd --system --home-dir "$INSTALL_DIR" --shell /usr/sbin/nologin datamind

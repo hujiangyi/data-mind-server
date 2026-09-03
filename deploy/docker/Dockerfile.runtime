@@ -8,14 +8,18 @@ COPY --from=healthcheck /bin/busybox /usr/local/bin/busybox
 WORKDIR /opt/datamind
 
 COPY bin/daas-go /opt/datamind/bin/daas-go
+COPY bin/datamind-upgrade /opt/datamind/bin/datamind-upgrade
 COPY configs/ /opt/datamind/configs/
 COPY migrations/ /opt/datamind/migrations/
+COPY migration-manifest.json /opt/datamind/migration-manifest.json
+COPY VERSION /opt/datamind/VERSION
+COPY entrypoint.sh /opt/datamind/entrypoint.sh
 
-RUN chmod 0755 /opt/datamind/bin/daas-go
+RUN chmod 0755 /opt/datamind/bin/daas-go /opt/datamind/bin/datamind-upgrade /opt/datamind/entrypoint.sh
 
 EXPOSE 3001
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=6 \
     CMD /usr/local/bin/busybox wget -q -O /dev/null http://127.0.0.1:3001/health
 
-ENTRYPOINT ["/opt/datamind/bin/daas-go", "-config", "/opt/datamind/configs/config.yaml"]
+ENTRYPOINT ["/opt/datamind/entrypoint.sh"]
