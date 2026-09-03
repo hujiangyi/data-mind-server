@@ -26,6 +26,22 @@ Vue 管理页面和服务端 API。
   sudo DATAMIND_GO_VERSION=v0.1.3 bash
 ```
 
+如果检测到已有安装，安装器会明确询问“更新”或“退出”。更新会保留
+`/opt/datamind-go/data`、运行配置、MCP Master Key 和 Cloud API Key，并在
+替换二进制前停止旧服务，随后强制重启 systemd 服务。也可以明确指定模式：
+
+```bash
+sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.3 \
+  bash ./install/install-go.sh
+
+sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.3 \
+  bash ./install/install-go.sh
+```
+
+安装阶段还会向 Cloud 查询 Go 版本兼容列表。Cloud 不支持目标版本、兼容
+接口不可用或响应不完整时，安装会中止并显示支持版本和建议版本，不会替换
+本地服务。安装完成前会再次确认 systemd 运行的进程不是已经删除的旧二进制。
+
 服务默认监听 `0.0.0.0:3001`，同时提供 Vue 网站和服务端 API。安装前会
 检查端口是否已被占用，启动后会等待服务进程、监听地址和健康接口全部通过。
 
@@ -182,7 +198,9 @@ https://data.example.com -> Nginx :443 -> DataMind Server :3001
 ## 数据和升级
 
 安装脚本会把运行配置和本地 SQLite 数据保存在版本化二进制之外。使用
-新的 Release 重新执行安装脚本时，只更新服务程序，保留本地数据目录。
+新的 Release 重新执行安装脚本时，应使用更新模式；脚本只更新服务程序和
+migrations，保留本地数据目录，并在文件切换后强制重启服务。不要在服务仍
+运行时手工覆盖 `/opt/datamind-go/bin/daas-go`。
 
 Linux 停止并移除服务：
 

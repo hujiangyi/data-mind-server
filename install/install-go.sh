@@ -6,6 +6,7 @@ export LC_CTYPE=C
 export LANG=C
 
 VERSION="${DATAMIND_GO_VERSION:-latest}"
+INSTALL_MODE="${DATAMIND_GO_INSTALL_MODE:-auto}"
 GITHUB_RELEASE_BASE="${DATAMIND_GITHUB_RELEASE_BASE:-https://github.com/hujiangyi/data-mind-server/releases/download}"
 GITEE_RELEASE_BASE="${DATAMIND_GITEE_RELEASE_BASE:-https://gitee.com/hujiangyi/data-mind-server/releases/download}"
 RELEASE_BASE="${DATAMIND_RELEASE_BASE:-}"
@@ -21,6 +22,8 @@ MCP_SETUP_BASE_URL="${DAAS_MCP_SETUP_BASE_URL:-}"
 MCP_PUBLIC_API_BASE="${DAAS_MCP_PUBLIC_API_BASE:-}"
 API_KEY_OBTAINED=0
 INSTALL_VERBOSE="${DATAMIND_INSTALL_VERBOSE:-0}"
+EXISTING_INSTALL=0
+CURRENT_VERSION=""
 CURL_EXTRA_ARGS=()
 if [[ -n "${DATAMIND_CURL_PROXY:-}" ]]; then
   CURL_EXTRA_ARGS+=(--proxy "$DATAMIND_CURL_PROXY")
@@ -47,6 +50,49 @@ read_env_value() {
   local name="$2"
   [[ -f "$file" ]] || return 0
   awk -v name="$name" 'index($0, name "=") == 1 {sub(/^[^=]*=/, ""); value=$0} END {print value}' "$file"
+}
+
+detect_existing_install() {
+  if [[ -f "$INSTALL_DIR/VERSION" || -f "$INSTALL_DIR/data/maicong.db" ||
+        -f "/etc/systemd/system/$SERVICE_NAME.service" ]]; then
+    EXISTING_INSTALL=1
+    if [[ -f "$INSTALL_DIR/VERSION" ]]; then
+      CURRENT_VERSION="$(tr -d '[:space:]' < "$INSTALL_DIR/VERSION")"
+    fi
+  fi
+}
+
+select_install_mode() {
+  [[ "$INSTALL_MODE" == "auto" || "$INSTALL_MODE" == "new" || "$INSTALL_MODE" == "update" ]] ||
+    fail "DATAMIND_GO_INSTALL_MODE 只能是 auto、new 或 update"
+
+  detect_existing_install
+  if [[ "$EXISTING_INSTALL" -eq 0 ]]; then
+    [[ "$INSTALL_MODE" != "update" ]] || fail "没有检测到已有 DataMind Go 安装，不能执行更新"
+    INSTALL_MODE="new"
+    return
+  fi
+
+  [[ "$INSTALL_MODE" != "new" ]] ||
+    fail "检测到已有 DataMind Go 安装（${CURRENT_VERSION:-版本未知}）。如需保留数据，请使用 DATAMIND_GO_INSTALL_MODE=update。"
+
+  if [[ "$INSTALL_MODE" == "auto" ]]; then
+    if [[ -r /dev/tty ]]; then
+      printf '\n检测到已有 DataMind Go 安装：%s\n' "${CURRENT_VERSION:-版本未知}"
+      printf '请选择操作：\n'
+      printf '  1) 更新到 %s（保留数据、配置和 Cloud Key，推荐）\n' "$VERSION"
+      printf '  2) 退出\n'
+      local choice
+      read -r -p '请选择 [1]： ' choice < /dev/tty || fail "未完成安装模式选择"
+      case "${choice:-1}" in
+        1) INSTALL_MODE="update" ;;
+        2|q|Q) fail "用户取消安装" ;;
+        *) fail "请输入 1 或 2" ;;
+      esac
+    else
+      INSTALL_MODE="update"
+    fi
+  fi
 }
 
 release_root_for() {
@@ -541,6 +587,18 @@ wait_for_service_ready() {
   return 1
 }
 
+check_runtime_binary() {
+  local pid
+  local executable
+  pid="$(systemctl show -p MainPID --value "$SERVICE_NAME.service")"
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || fail "无法取得 DataMind Go 运行进程 PID"
+  executable="$(readlink "/proc/$pid/exe" 2>/dev/null || true)"
+  [[ "$executable" == "$INSTALL_DIR/bin/daas-go" ]] ||
+    fail "服务运行的二进制路径异常：$executable"
+  [[ "$executable" != *" (deleted)"* ]] ||
+    fail "服务仍运行在已删除的旧版二进制上，请执行 systemctl restart $SERVICE_NAME.service 后重试"
+}
+
 check_cloud_ai_capability() {
   local payload
   local response_file
@@ -579,6 +637,54 @@ check_cloud_ai_capability() {
   message="$(printf '%s' "$message" | tr '\r\n' ' ' | tr -d '\000-\037\177')"
   printf '通过，AI 欢迎语：%s\n' "$message"
   return 0
+}
+
+check_cloud_go_compatibility() {
+  local response_file
+  local status
+  local compatible
+  local supported
+  local recommended
+  local endpoint="${CLOUD_API_BASE%/}/cloud/server/compatibility"
+
+  printf '检查 Cloud Go 版本兼容性 ... '
+  response_file="$(mktemp "${TMPDIR:-/tmp}/datamind-cloud-compatibility.XXXXXX")"
+  if ! status="$(curl --silent --show-error --location --ipv4 --http1.1 \
+      "${CURL_EXTRA_ARGS[@]}" \
+      --connect-timeout 8 --max-time 15 \
+      --get --data-urlencode "goVersion=$VERSION" \
+      --data-urlencode "operation=$INSTALL_MODE" \
+      -o "$response_file" -w '%{http_code}' "$endpoint" 2>/dev/null)"; then
+    rm -f "$response_file"
+    printf '未通过\n' >&2
+    fail "无法向 DataMind Cloud 查询 Go 版本兼容性，为避免安装不受支持的版本，安装已中止"
+  fi
+  if [[ "$status" != "2"* ]]; then
+    rm -f "$response_file"
+    printf '未通过\n' >&2
+    fail "DataMind Cloud 暂时无法提供 Go 版本兼容列表（HTTP $status），安装已中止"
+  fi
+  if command -v jq >/dev/null 2>&1; then
+    compatible="$(jq -r '.data.compatible // false' "$response_file" 2>/dev/null || true)"
+    supported="$(jq -r '(.data.supportedGoVersions // []) | join(", ")' "$response_file" 2>/dev/null || true)"
+    recommended="$(jq -r '.data.recommendedGoVersion // empty' "$response_file" 2>/dev/null || true)"
+  else
+    compatible="$(sed -nE 's/.*"compatible":[[:space:]]*(true|false).*/\1/p' "$response_file" | head -1)"
+    supported="$(sed -nE 's/.*"supportedGoVersions":[[:space:]]*\[([^]]*)\].*/\1/p' "$response_file" | tr -d '"' | tr ',' ' ')"
+    recommended="$(sed -nE 's/.*"recommendedGoVersion":[[:space:]]*"([^"]+)".*/\1/p' "$response_file" | head -1)"
+  fi
+  rm -f "$response_file"
+  [[ -n "$supported" && -n "$recommended" ]] || {
+    printf '未通过\n' >&2
+    fail "DataMind Cloud 兼容响应不完整，缺少支持版本或推荐版本，安装已中止"
+  }
+  if [[ "$compatible" != "true" ]]; then
+    printf '不支持\n' >&2
+    printf '提示：Cloud 当前支持的 Go 版本：%s。\n' "$supported"
+    printf '建议版本：%s。请改用 DATAMIND_GO_VERSION=%s 重试。\n' "$recommended" "$recommended"
+    fail "目标 Go 版本 $VERSION 与当前 DataMind Cloud 不兼容"
+  fi
+  printf '通过（%s -> %s）\n' "${CURRENT_VERSION:-新装}" "$VERSION"
 }
 
 show_obtained_api_key() {
@@ -646,6 +752,7 @@ case "$(uname -m)" in
 esac
 
 ASSET="datamind-go-linux-$ARCH.tar.gz"
+select_install_mode
 check_install_environment
 
 ENV_FILE="$INSTALL_DIR/.env"
@@ -654,6 +761,7 @@ if [[ -z "$API_KEY" ]]; then
 fi
 obtain_cloud_api_key
 validate_cloud_api_key "$API_KEY"
+check_cloud_go_compatibility
 
 if [[ -z "$MCP_SETUP_BASE_URL" ]]; then
   MCP_SETUP_BASE_URL="$(read_env_value "$ENV_FILE" "DAAS_MCP_SETUP_BASE_URL")"
@@ -700,6 +808,12 @@ tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
 [[ -x "$EXTRACT_ROOT/bin/daas-go" ]] || fail "Release 缺少 bin/daas-go"
 [[ -f "$EXTRACT_ROOT/configs/config.yaml" ]] || fail "Release 缺少 configs/config.yaml"
 [[ -d "$EXTRACT_ROOT/migrations" ]] || fail "Release 缺少 migrations 目录"
+
+if [[ "$INSTALL_MODE" == "update" ]]; then
+  printf '停止旧版 DataMind Go 服务，准备切换到 %s ...\n' "$VERSION"
+  systemctl stop "$SERVICE_NAME.service" ||
+    fail "无法停止旧版 DataMind Go 服务，已取消更新"
+fi
 
 mkdir -p "$INSTALL_DIR"
 if [[ ! -f "$INSTALL_DIR/configs/config.yaml" ]]; then
@@ -759,8 +873,13 @@ WantedBy=multi-user.target
 UNIT
 
 systemctl daemon-reload
-if ! systemctl enable --now "$SERVICE_NAME.service"; then
-  fail "DataMind 服务启动失败，请检查系统服务日志"
+if [[ "$INSTALL_MODE" == "update" ]]; then
+  systemctl restart "$SERVICE_NAME.service" ||
+    fail "DataMind Go 更新后重启失败，请检查系统服务日志"
+  systemctl enable "$SERVICE_NAME.service" >/dev/null
+else
+  systemctl enable --now "$SERVICE_NAME.service" ||
+    fail "DataMind 服务启动失败，请检查系统服务日志"
 fi
 
 printf '启动并验证 DataMind 服务 ...\n'
@@ -771,6 +890,7 @@ if ! wait_for_service_ready; then
   printf '卸载命令：{ curl -fsSL https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.sh || curl -fsSL https://gitee.com/hujiangyi/data-mind-server/raw/main/install/uninstall-go.sh; } | sudo bash\n' >&2
   fail "DataMind 服务启动检查失败"
 fi
+check_runtime_binary
 printf '  服务进程状态：通过\n'
 printf '  网络监听状态：通过（%s:%s）\n' "$BIND_ADDRESS" "$PORT"
 printf '  网站和 API 健康检查：通过\n'
@@ -783,6 +903,7 @@ if ! check_cloud_ai_capability; then
 fi
 
 printf '\nDataMind Go 安装成功\n'
+printf '安装模式：%s\n' "$INSTALL_MODE"
 printf '安装目录：%s\n' "$INSTALL_DIR"
 printf '服务名称：%s.service\n' "$SERVICE_NAME"
 printf '服务监听：%s:%s\n' "$BIND_ADDRESS" "$PORT"

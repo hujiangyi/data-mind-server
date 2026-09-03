@@ -29,6 +29,26 @@ Cloud API key is available, the installer guides the user through registration:
   sudo DATAMIND_GO_VERSION=v0.1.3 bash
 ```
 
+When an existing installation is detected, the installer asks whether to update
+or exit. An update preserves `/opt/datamind-go/data`, runtime configuration,
+the MCP master key, and the Cloud API key. It stops the old service before
+replacing files and then force-restarts the systemd service. The mode can also
+be selected explicitly:
+
+```bash
+sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.3 \
+  bash ./install/install-go.sh
+
+sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.3 \
+  bash ./install/install-go.sh
+```
+
+During installation, the script queries Cloud for its Go compatibility list. If
+the requested version is unsupported, or the compatibility response is missing
+or unavailable, installation stops with the supported and recommended versions.
+Before reporting success it also verifies that systemd is not running a deleted
+old binary.
+
 The service listens on `0.0.0.0:3001` by default and serves both the Vue website
 and server APIs. The installer checks port occupancy before installation and
 waits for the process, listener, and health endpoint after startup.
@@ -192,8 +212,10 @@ installation and use Nginx as the public entry point.
 ## Data and upgrades
 
 The installer keeps runtime configuration and local SQLite data outside the
-versioned binary files. Re-running the installer with a newer Release updates
-the service while preserving the local data directory.
+versioned binary files. Re-run the installer in update mode with a newer
+Release: it updates the service and migrations while preserving local data, then
+restarts the service. Do not overwrite `/opt/datamind-go/bin/daas-go` manually
+while the service is running.
 
 Stop and remove a Linux installation:
 
