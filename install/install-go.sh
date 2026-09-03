@@ -695,6 +695,16 @@ show_obtained_api_key() {
   fi
 }
 
+print_admin_guidance() {
+  printf '\nWeb 管理入口：http://127.0.0.1:%s\n' "$PORT"
+  printf '全新安装管理员账号：admin\n'
+  printf '全新安装管理员初始密码：123456\n'
+  printf '首次登录必须修改为 8～16 位新密码；管理员创建或重置的账号也使用此初始密码。\n'
+  printf '\n管理员操作指南：\n'
+  printf 'GitHub：https://github.com/hujiangyi/data-mind-server/blob/main/docs/zh-CN/admin-guide.md\n'
+  printf 'Gitee： https://gitee.com/hujiangyi/data-mind-server/blob/main/docs/zh-CN/admin-guide.md\n'
+}
+
 configure_runtime_config() {
   local config_file="$1"
   local temp_file
@@ -899,6 +909,7 @@ if ! check_cloud_ai_capability; then
   printf '提示：DataMind 服务已经启动，但 Cloud AI 能力检查未通过。\n' >&2
   printf '请先检查 Cloud 账号额度和网络，再执行：systemctl restart %s.service\n' "$SERVICE_NAME" >&2
   printf '卸载命令：{ curl -fsSL https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.sh || curl -fsSL https://gitee.com/hujiangyi/data-mind-server/raw/main/install/uninstall-go.sh; } | sudo bash\n' >&2
+  print_admin_guidance
   exit 1
 fi
 
@@ -910,10 +921,4 @@ printf '服务监听：%s:%s\n' "$BIND_ADDRESS" "$PORT"
 printf '本机访问：http://127.0.0.1:%s\n' "$PORT"
 printf '状态检查：systemctl status %s.service\n' "$SERVICE_NAME"
 printf '卸载命令：{ curl -fsSL https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.sh || curl -fsSL https://gitee.com/hujiangyi/data-mind-server/raw/main/install/uninstall-go.sh; } | sudo bash\n'
-printf '\nWeb 管理入口：http://127.0.0.1:%s\n' "$PORT"
-printf '全新安装管理员账号：admin\n'
-printf '全新安装管理员初始密码：123456\n'
-printf '首次登录必须修改为 8～16 位新密码；管理员创建或重置的账号也使用此初始密码。\n'
-printf '\n管理员操作指南：\n'
-printf 'GitHub：https://github.com/hujiangyi/data-mind-server/blob/main/docs/zh-CN/admin-guide.md\n'
-printf 'Gitee： https://gitee.com/hujiangyi/data-mind-server/blob/main/docs/zh-CN/admin-guide.md\n'
+print_admin_guidance
