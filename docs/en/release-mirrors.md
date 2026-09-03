@@ -72,7 +72,7 @@ The Linux bootstrap command can choose the raw script source:
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.5 bash
+  sudo DATAMIND_GO_VERSION=v0.1.6 bash
 ```
 
 The installer then independently selects the reachable Release source.
