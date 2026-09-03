@@ -16,9 +16,27 @@ $ErrorActionPreference = "Stop"
 $script:ApiKeyObtained = $false
 $script:BindAddress = if ([string]::IsNullOrWhiteSpace($env:DATAMIND_BIND_ADDRESS)) { "0.0.0.0" } else { $env:DATAMIND_BIND_ADDRESS }
 $script:Port = if ([string]::IsNullOrWhiteSpace($env:DATAMIND_PORT)) { 3001 } else { [int]$env:DATAMIND_PORT }
+$script:ServerIp = if ([string]::IsNullOrWhiteSpace($env:DATAMIND_SERVER_IP)) { "" } else { $env:DATAMIND_SERVER_IP }
 
 function Fail([string]$Message) {
     throw $Message
+}
+
+function Get-ServerIp {
+    if (-not [string]::IsNullOrWhiteSpace($script:ServerIp)) {
+        return $script:ServerIp
+    }
+    $candidate = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.IPAddress -ne "127.0.0.1" -and
+            $_.IPAddress -notlike "169.254.*" -and
+            $_.PrefixOrigin -ne "WellKnown"
+        } |
+        Select-Object -First 1 -ExpandProperty IPAddress
+    if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+        $script:ServerIp = $candidate
+    }
+    return $script:ServerIp
 }
 
 function Assert-Command([string]$Name) {
@@ -465,7 +483,7 @@ try {
         Fail "Docker 分发包缺少 docker-compose.yml"
     }
     $bundleRoot = $composeFile.Directory.FullName
-    foreach ($required in @("Dockerfile.runtime", "bin\daas-go", "configs\config.yaml", "migrations")) {
+    foreach ($required in @("Dockerfile.runtime", "bin\daas-go", "configs\config.yaml", "migrations", "frontend-build.json")) {
         if (-not (Test-Path -LiteralPath (Join-Path $bundleRoot $required))) {
             Fail "Docker 分发包缺少：$required"
         }
@@ -477,6 +495,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $bundleRoot ".env.example") -Destination $InstallDir -Force
     Copy-Item -LiteralPath (Join-Path $bundleRoot "bin") -Destination $InstallDir -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $bundleRoot "migrations") -Destination $InstallDir -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $bundleRoot "frontend-build.json") -Destination $InstallDir -Force
     if (-not (Test-Path -LiteralPath (Join-Path $InstallDir "configs\config.yaml"))) {
         Copy-Item -LiteralPath (Join-Path $bundleRoot "configs") -Destination $InstallDir -Recurse -Force
     }
@@ -581,10 +600,27 @@ try {
     Write-Host "安装目录：$InstallDir"
     Write-Host "服务监听：$configuredBindAddress`:$port"
     Write-Host "本机访问：http://127.0.0.1:$port"
+    if ($configuredBindAddress -notin @("127.0.0.1", "::1", "localhost")) {
+        $serverIp = Get-ServerIp
+        if ([string]::IsNullOrWhiteSpace($serverIp)) {
+            Write-Host "服务器访问：http://{server_ip}:$port"
+            Write-Host "提示：未能自动识别服务器 IP，请将 {server_ip} 替换为本机可访问的服务器地址。"
+        } else {
+            Write-Host "服务器访问：http://$serverIp`:$port"
+        }
+    }
     Write-Host "Docker 架构：$dockerPlatform"
     Write-Host "卸载命令：irm https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.ps1 | iex"
     Write-Host ""
     Write-Host "Web 管理入口：http://127.0.0.1:$port"
+    if ($configuredBindAddress -notin @("127.0.0.1", "::1", "localhost")) {
+        $serverIp = Get-ServerIp
+        if ([string]::IsNullOrWhiteSpace($serverIp)) {
+            Write-Host "Web 公网入口：http://{server_ip}:$port"
+        } else {
+            Write-Host "Web 公网入口：http://$serverIp`:$port"
+        }
+    }
     Write-Host "全新安装管理员账号：admin"
     Write-Host "全新安装管理员初始密码：123456"
     Write-Host "首次登录必须修改为 8～16 位新密码；管理员创建或重置的账号也使用此初始密码。"

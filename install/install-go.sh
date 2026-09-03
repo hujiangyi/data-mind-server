@@ -20,6 +20,7 @@ PORT="${DATAMIND_PORT:-3001}"
 MCP_MASTER_KEY="${DAAS_MCP_MASTER_KEY:-}"
 MCP_SETUP_BASE_URL="${DAAS_MCP_SETUP_BASE_URL:-}"
 MCP_PUBLIC_API_BASE="${DAAS_MCP_PUBLIC_API_BASE:-}"
+SERVER_IP="${DATAMIND_SERVER_IP:-}"
 API_KEY_OBTAINED=0
 INSTALL_VERBOSE="${DATAMIND_INSTALL_VERBOSE:-0}"
 EXISTING_INSTALL=0
@@ -697,6 +698,20 @@ show_obtained_api_key() {
 
 print_admin_guidance() {
   printf '\nWeb 管理入口：http://127.0.0.1:%s\n' "$PORT"
+  if [[ "$BIND_ADDRESS" != "127.0.0.1" && "$BIND_ADDRESS" != "::1" && "$BIND_ADDRESS" != "localhost" ]]; then
+    if [[ -z "$SERVER_IP" ]]; then
+      SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+    fi
+    if [[ -z "$SERVER_IP" && -r /proc/net/route ]]; then
+      SERVER_IP="$(ip route get 1.1.1.1 2>/dev/null | awk '/src/ {for (i = 1; i <= NF; i++) if ($i == "src") {print $(i + 1); exit}}')"
+    fi
+    if [[ -n "$SERVER_IP" ]]; then
+      printf '服务器访问：http://%s:%s\n' "$SERVER_IP" "$PORT"
+    else
+      printf '服务器访问：http://{server_ip}:%s\n' "$PORT"
+      printf '提示：未能自动识别服务器 IP，请将 {server_ip} 替换为本机可访问的服务器地址。\n'
+    fi
+  fi
   printf '全新安装管理员账号：admin\n'
   printf '全新安装管理员初始密码：123456\n'
   printf '首次登录必须修改为 8～16 位新密码；管理员创建或重置的账号也使用此初始密码。\n'
@@ -820,6 +835,7 @@ tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
 [[ -f "$EXTRACT_ROOT/configs/config.yaml" ]] || fail "Release 缺少 configs/config.yaml"
 [[ -d "$EXTRACT_ROOT/migrations" ]] || fail "Release 缺少 migrations 目录"
 [[ -f "$EXTRACT_ROOT/migration-manifest.json" ]] || fail "Release 缺少 migration-manifest.json，拒绝执行未校验迁移链的 Release"
+[[ -f "$EXTRACT_ROOT/frontend-build.json" ]] || fail "Release 缺少 frontend-build.json，拒绝执行未绑定 Vue 构建信息的 Release"
 
 if [[ "$INSTALL_MODE" == "update" ]]; then
   printf '停止旧版 DataMind Go 服务，准备切换到 %s ...\n' "$VERSION"
@@ -848,6 +864,7 @@ rm -rf "$INSTALL_DIR/bin" "$INSTALL_DIR/migrations"
 cp -R "$EXTRACT_ROOT/bin" "$INSTALL_DIR/bin"
 cp -R "$EXTRACT_ROOT/migrations" "$INSTALL_DIR/migrations"
 cp "$EXTRACT_ROOT/migration-manifest.json" "$INSTALL_DIR/migration-manifest.json"
+cp "$EXTRACT_ROOT/frontend-build.json" "$INSTALL_DIR/frontend-build.json"
 printf '%s\n' "$VERSION" > "$INSTALL_DIR/VERSION"
 chmod 0755 "$INSTALL_DIR/bin/daas-go" "$INSTALL_DIR/bin/datamind-upgrade"
 
@@ -932,6 +949,16 @@ printf '安装目录：%s\n' "$INSTALL_DIR"
 printf '服务名称：%s.service\n' "$SERVICE_NAME"
 printf '服务监听：%s:%s\n' "$BIND_ADDRESS" "$PORT"
 printf '本机访问：http://127.0.0.1:%s\n' "$PORT"
+if [[ "$BIND_ADDRESS" != "127.0.0.1" && "$BIND_ADDRESS" != "::1" && "$BIND_ADDRESS" != "localhost" ]]; then
+  if [[ -z "$SERVER_IP" ]]; then
+    SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  fi
+  if [[ -n "$SERVER_IP" ]]; then
+    printf '服务器访问：http://%s:%s\n' "$SERVER_IP" "$PORT"
+  else
+    printf '服务器访问：http://{server_ip}:%s\n' "$PORT"
+  fi
+fi
 printf '状态检查：systemctl status %s.service\n' "$SERVICE_NAME"
 printf '卸载命令：{ curl -fsSL https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/uninstall-go.sh || curl -fsSL https://gitee.com/hujiangyi/data-mind-server/raw/main/install/uninstall-go.sh; } | sudo bash\n'
 print_admin_guidance

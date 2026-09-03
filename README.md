@@ -141,7 +141,10 @@ an email/password registration, obtains a free key, and then creates the
 `datamind-go.service` systemd service. If the mailbox already exists, a matching
 Cloud password signs a fresh usable key without another registration. The
 service listens on `0.0.0.0:3001` by default and serves both the Vue website and
-server APIs.
+server APIs. After installation, the script prints both the local loopback address
+`http://127.0.0.1:3001` and a server access address in the form
+`http://{server_ip}:3001`. The server IP is detected automatically when possible;
+set `DATAMIND_SERVER_IP` to override it.
 
 ### Windows
 

@@ -120,6 +120,9 @@ DataMind 适合以下安全诉求：
 登录密码，自动注册免费账号并取得 Key，然后创建 `datamind-go.service`。
 如果邮箱已经注册，输入匹配的 Cloud 密码即可签发一个新的可用 Key。
 服务默认监听 `0.0.0.0:3001`，同时提供 Vue 网站和服务端 API。
+安装完成后，脚本会同时显示本机回环地址 `http://127.0.0.1:3001` 和服务器
+访问地址 `http://{server_ip}:3001`；其中 `{server_ip}` 会优先自动识别，也可以
+通过 `DATAMIND_SERVER_IP` 显式指定。
 
 安装器会严格校验 Go 服务端 Release 包，包内必须包含：
 
@@ -128,6 +131,7 @@ bin/daas-go
 bin/datamind-upgrade
 migrations/
 migration-manifest.json
+frontend-build.json
 configs/config.yaml
 VERSION
 ```
