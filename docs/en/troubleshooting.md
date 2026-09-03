@@ -44,18 +44,33 @@ direct connection if it fails. After confirming DNS and HTTPS access from the
 server, choose a direct connection or a proxy:
 
 ```bash
-sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
 ```
 
 ```bash
 sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
-  DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
+  DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
 ```
 
 If the Cloud AI check passes but a Release source does not, set
 `DATAMIND_RELEASE_SOURCE=gitee` or `DATAMIND_RELEASE_SOURCE=github` to force a
 source. If it still fails, inspect the server firewall, DNS, proxy, and
 outbound port `443`.
+
+## Release missing the upgrade tool
+
+If the installer reports:
+
+```text
+Release missing bin/datamind-upgrade
+```
+
+the selected Release archive is an old or incomplete package. Do not uninstall
+the current installation or manually overwrite
+`/opt/datamind-go/bin/daas-go`. Publish a complete Release containing the
+upgrade tool, migrations, migration manifest, and matching checksums. GitHub
+and Gitee must receive the same asset bytes; updating only one mirror can make
+the installer download the old package after a source fallback.
 
 ## Cloud AI is unavailable
 

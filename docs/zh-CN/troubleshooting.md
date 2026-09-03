@@ -40,17 +40,34 @@ Release 源。如果检查失败，脚本会直接退出，不会继续等待。
 能解析并访问 HTTPS；仍然失败时，再根据网络环境选择直连或代理：
 
 ```bash
-sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
 ```
 
 ```bash
 sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
-  DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
+  DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
 ```
 
 如果 Cloud AI 检查通过但 Release 源不可用，可以设置
 `DATAMIND_RELEASE_SOURCE=gitee` 或 `DATAMIND_RELEASE_SOURCE=github` 强制
 选择源；仍然失败时检查服务器防火墙、DNS、代理和出站 `443` 端口。
+
+## Release 缺少升级工具
+
+如果看到以下错误：
+
+```text
+错误：Release 缺少 bin/datamind-upgrade，拒绝执行未带升级工具的 Release
+```
+
+说明当前下载到的 Release 压缩包是旧格式或上传不完整。先不要删除当前
+安装，也不要手工覆盖 `/opt/datamind-go/bin/daas-go`。确认目标 Release
+的 Go 压缩包同时包含 `bin/datamind-upgrade`、`migrations/` 和
+`migration-manifest.json`，并确认 `checksums.txt` 与实际文件匹配。
+
+GitHub 和 Gitee 必须分别上传同一批完整资产；只更新其中一个源会导致安装
+器因网络回退而再次下载旧包。修复 Release 后重新执行安装命令即可，升级
+模式会保留数据、配置和 Cloud Key。
 
 ## Cloud AI 不可用
 

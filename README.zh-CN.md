@@ -95,6 +95,7 @@ DataMind 适合以下安全诉求：
 - macOS AMD64 和 ARM64 Go 服务及 CLI 二进制；
 - Linux AMD64 和 ARM64 Go 服务及 CLI 二进制；
 - Windows Docker Desktop 使用的 Linux Docker 分发包；
+- Go 服务端升级工具、完整数据库迁移目录和迁移清单；
 - Docker Compose 和运行时模板；
 - Nginx 反向代理部署示例；
 - Release 校验文件和兼容性说明；
@@ -109,7 +110,7 @@ DataMind 适合以下安全诉求：
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.3 bash
+  sudo DATAMIND_GO_VERSION=v0.1.4 bash
 ```
 
 脚本会先检查系统依赖、外部网络、可用下载源和 `3001` 端口，再根据服务器
@@ -119,6 +120,22 @@ DataMind 适合以下安全诉求：
 登录密码，自动注册免费账号并取得 Key，然后创建 `datamind-go.service`。
 如果邮箱已经注册，输入匹配的 Cloud 密码即可签发一个新的可用 Key。
 服务默认监听 `0.0.0.0:3001`，同时提供 Vue 网站和服务端 API。
+
+安装器会严格校验 Go 服务端 Release 包，包内必须包含：
+
+```text
+bin/daas-go
+bin/datamind-upgrade
+migrations/
+migration-manifest.json
+configs/config.yaml
+VERSION
+```
+
+其中 `bin/datamind-upgrade` 负责在切换新服务版本前备份并执行数据库和
+配置迁移，`migration-manifest.json` 用于校验迁移文件的完整性。缺少任一
+升级资产时，安装器会拒绝继续执行，不会覆盖当前服务。不要使用卸载重装
+来绕过检查，应当重新下载包含完整资产的新 Release。
 
 ### Windows
 
@@ -177,7 +194,7 @@ Linux 服务器执行：
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.3 bash
+  sudo DATAMIND_GO_VERSION=v0.1.4 bash
 ```
 
 Windows 用户先安装并启动 Docker Desktop，然后在 PowerShell 执行：
@@ -242,7 +259,7 @@ export DATAMIND_CLOUD_API_KEY='dm_free_...'
 然后执行本地安装脚本：
 
 ```bash
-sudo -E DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
+sudo -E DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
 ```
 
 环境变量中的 Key 可能进入 Shell 历史或自动化日志。普通安装建议直接

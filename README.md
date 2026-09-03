@@ -129,7 +129,7 @@ Install a compiled Go/Vue server distribution:
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.3 bash
+  sudo DATAMIND_GO_VERSION=v0.1.4 bash
 ```
 
 The installer first checks system dependencies, external network access, a usable
@@ -203,7 +203,7 @@ On a Linux server, run:
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.3 bash
+  sudo DATAMIND_GO_VERSION=v0.1.4 bash
 ```
 
 On Windows, install and start Docker Desktop, then run:
@@ -272,7 +272,7 @@ export DATAMIND_CLOUD_API_KEY='dm_free_...'
 Then run the local installer:
 
 ```bash
-sudo -E DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
+sudo -E DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
 ```
 
 An API key in an environment variable may enter shell history or automation
@@ -301,8 +301,26 @@ Each Release includes:
 
 - platform-specific server and CLI binaries;
 - Windows Docker distributions;
+- the `datamind-upgrade` binary and complete database migration chain inside
+  every Go server archive;
+- `migration-manifest.json`, `configs/config.yaml`, `VERSION`, and checksums;
 - `checksums.txt`;
 - a Release manifest and licensing documents.
+
+The Go server archive is not a raw binary-only package. It must contain:
+
+```text
+bin/daas-go
+bin/datamind-upgrade
+migrations/
+migration-manifest.json
+configs/config.yaml
+VERSION
+```
+
+The installer refuses a Release that is missing `bin/datamind-upgrade` or
+`migration-manifest.json`. An old Release must not be used to work around this
+check; publish the complete asset set as a new Release instead.
 
 ## License
 

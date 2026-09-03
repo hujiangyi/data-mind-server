@@ -9,7 +9,8 @@ Gitee： https://gitee.com/hujiangyi/data-mind-server
 
 两个仓库应保持相同的 `main` 分支、版本标签、Release 资产名称和
 `checksums.txt` 内容。Gitee 仓库创建并同步 Release 资产后，Gitee 回退
-下载才会生效。
+下载才会生效。GitHub 和 Gitee 必须上传同一批文件，不能只同步 Release
+标题或部分资产。
 
 ## 源选择
 
@@ -44,8 +45,8 @@ git remote add gitee git@gitee.com:hujiangyi/data-mind-server.git
 git push gitee main --tags
 ```
 
-还需要把对应的 Release 资产上传到 Gitee Release。安装器至少需要以下
-资产：
+还需要把对应的完整 Release 资产上传到 Gitee Release。安装器至少需要以下
+顶层资产：
 
 ```text
 datamind-go-linux-amd64.tar.gz
@@ -56,7 +57,27 @@ checksums.txt
 ```
 
 GitHub 和 Gitee 的资产字节必须完全一致。同步时不要重新生成压缩包，
-否则会导致 `checksums.txt` 失效。
+否则会导致 `checksums.txt` 失效。每个 `datamind-go-*.tar.gz` 内部还必须
+包含：
+
+```text
+bin/daas-go
+bin/datamind-upgrade
+migrations/
+migration-manifest.json
+configs/config.yaml
+VERSION
+```
+
+上传后可使用以下命令检查 Gitee 资产：
+
+```bash
+mkdir -p /tmp/datamind-v0.1.4-gitee-check
+curl -fL -o /tmp/datamind-v0.1.4-gitee-check/server.tar.gz \
+  https://gitee.com/hujiangyi/data-mind-server/releases/download/v0.1.4/datamind-go-linux-amd64.tar.gz
+tar -tzf /tmp/datamind-v0.1.4-gitee-check/server.tar.gz | \
+  grep -E '(^|/)bin/(daas-go|datamind-upgrade)$|migration-manifest.json|^\\./VERSION$|configs/config.yaml'
+```
 
 ## 一键安装
 
@@ -65,7 +86,7 @@ Linux 一键命令可以先选择可访问的 raw 脚本源：
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.3 bash
+  sudo DATAMIND_GO_VERSION=v0.1.4 bash
 ```
 
 脚本启动后还会独立探测可访问的 Release 下载源。

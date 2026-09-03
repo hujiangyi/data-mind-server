@@ -23,7 +23,7 @@ Vue 管理页面和服务端 API。
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.3 bash
+  sudo DATAMIND_GO_VERSION=v0.1.4 bash
 ```
 
 如果检测到已有安装，安装器会明确询问“更新”或“退出”。更新会保留
@@ -31,16 +31,33 @@ Vue 管理页面和服务端 API。
 替换二进制前停止旧服务，随后强制重启 systemd 服务。也可以明确指定模式：
 
 ```bash
-sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.3 \
+sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.4 \
   bash ./install/install-go.sh
 
-sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.3 \
+sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.4 \
   bash ./install/install-go.sh
 ```
 
 安装阶段还会向 Cloud 查询 Go 版本兼容列表。Cloud 不支持目标版本、兼容
 接口不可用或响应不完整时，安装会中止并显示支持版本和建议版本，不会替换
 本地服务。安装完成前会再次确认 systemd 运行的进程不是已经删除的旧二进制。
+
+下载并解压 Release 后，安装器还会强制检查服务端资产是否完整。每个
+`datamind-go-*.tar.gz` 必须包含：
+
+```text
+bin/daas-go
+bin/datamind-upgrade
+migrations/
+migration-manifest.json
+configs/config.yaml
+VERSION
+```
+
+`bin/datamind-upgrade` 会在更新模式下先备份现有 SQLite 数据库和配置，再
+执行全部未完成的跨版本迁移。迁移、配置迁移或校验失败时，安装器不会切换
+新服务版本。缺少升级工具的旧 Release 不能继续使用，也不能通过卸载重装
+规避检查；请改用包含完整升级资产的新 Release。
 
 服务默认监听 `0.0.0.0:3001`，同时提供 Vue 网站和服务端 API。安装前会
 检查端口是否已被占用，启动后会等待服务进程、监听地址和健康接口全部通过。
@@ -58,14 +75,14 @@ export DATAMIND_RELEASE_SOURCE=gitee
 如果服务器配置了无法访问外网的代理，也可以显式指定直连：
 
 ```bash
-sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
 ```
 
 如果服务器必须经过指定代理，可以设置：
 
 ```bash
 sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
-  DATAMIND_GO_VERSION=v0.1.3 bash ./install/install-go.sh
+  DATAMIND_GO_VERSION=v0.1.4 bash ./install/install-go.sh
 ```
 
 网络检查失败时，脚本会在下载二进制前直接退出，不会继续等待后续安装。
@@ -90,7 +107,7 @@ http://127.0.0.1:3001
 安装指定版本：
 
 ```powershell
-& .\install-go.ps1 -Version v0.1.3
+& .\install-go.ps1 -Version v0.1.4
 ```
 
 Windows 安装不需要 Go、MinGW 或 Windows 原生 Go 构建环境。

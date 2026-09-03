@@ -50,7 +50,7 @@ git push gitee main --tags
 ```
 
 Release assets must also be uploaded to the matching Gitee Release. The
-following asset names are required by the installers:
+following top-level asset names are required by the installers:
 
 ```text
 datamind-go-linux-amd64.tar.gz
@@ -60,6 +60,8 @@ datamind-docker-linux-arm64.zip
 checksums.txt
 ```
 
+Every `datamind-go-*.tar.gz` must also contain `bin/datamind-upgrade`,
+`migrations/`, `migration-manifest.json`, `configs/config.yaml`, and `VERSION`.
 The asset bytes must be identical between GitHub and Gitee. Do not regenerate
 an archive during mirroring, because that would invalidate `checksums.txt`.
 
@@ -70,7 +72,7 @@ The Linux bootstrap command can choose the raw script source:
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.3 bash
+  sudo DATAMIND_GO_VERSION=v0.1.4 bash
 ```
 
 The installer then independently selects the reachable Release source.
