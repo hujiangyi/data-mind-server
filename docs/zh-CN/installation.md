@@ -23,7 +23,7 @@ Vue 管理页面和服务端 API。
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.6 bash
+  sudo DATAMIND_GO_VERSION=v0.1.7 bash
 ```
 
 如果检测到已有安装，安装器会明确询问“更新”“重新安装”或“退出”。更新会保留
@@ -33,14 +33,14 @@ Vue 管理页面和服务端 API。
 安装器会要求输入 `REINSTALL` 明确确认。也可以明确指定模式：
 
 ```bash
-sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.6 \
+sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.7 \
   bash ./install/install-go.sh
 
-sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.6 \
+sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.7 \
   bash ./install/install-go.sh
 
 sudo DATAMIND_GO_INSTALL_MODE=reinstall \
-  DATAMIND_GO_REINSTALL_CONFIRM=REINSTALL DATAMIND_GO_VERSION=v0.1.6 \
+  DATAMIND_GO_REINSTALL_CONFIRM=REINSTALL DATAMIND_GO_VERSION=v0.1.7 \
   bash ./install/install-go.sh
 ```
 
@@ -82,14 +82,14 @@ export DATAMIND_RELEASE_SOURCE=gitee
 如果服务器配置了无法访问外网的代理，也可以显式指定直连：
 
 ```bash
-sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.6 bash ./install/install-go.sh
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.7 bash ./install/install-go.sh
 ```
 
 如果服务器必须经过指定代理，可以设置：
 
 ```bash
 sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
-  DATAMIND_GO_VERSION=v0.1.6 bash ./install/install-go.sh
+  DATAMIND_GO_VERSION=v0.1.7 bash ./install/install-go.sh
 ```
 
 网络检查失败时，脚本会在下载二进制前直接退出，不会继续等待后续安装。
@@ -114,7 +114,7 @@ http://127.0.0.1:3001
 安装指定版本：
 
 ```powershell
-& .\install-go.ps1 -Version v0.1.6
+& .\install-go.ps1 -Version v0.1.7
 ```
 
 Windows 安装不需要 Go、MinGW 或 Windows 原生 Go 构建环境。
