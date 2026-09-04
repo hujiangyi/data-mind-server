@@ -187,6 +187,10 @@ change is complete, protected server business routes remain blocked.
 The web account password is separate from the DataMind Cloud API key used by
 the Go service. Do not paste one in place of the other.
 
+DataMind does not retain or record users' private business data. See the
+[Privacy Policy](docs/en/privacy-policy.md) for the complete data-handling
+boundary.
+
 ### Nginx and HTTPS
 
 Production deployments should use an HTTPS domain and reverse proxy to the Go

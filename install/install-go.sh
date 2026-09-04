@@ -24,6 +24,7 @@ SERVER_IP="${DATAMIND_SERVER_IP:-}"
 API_KEY_OBTAINED=0
 INSTALL_VERBOSE="${DATAMIND_INSTALL_VERBOSE:-0}"
 EXISTING_INSTALL=0
+REINSTALL_CONFIRMED=0
 CURRENT_VERSION=""
 CURL_EXTRA_ARGS=()
 if [[ -n "${DATAMIND_CURL_PROXY:-}" ]]; then
@@ -64,35 +65,55 @@ detect_existing_install() {
 }
 
 select_install_mode() {
-  [[ "$INSTALL_MODE" == "auto" || "$INSTALL_MODE" == "new" || "$INSTALL_MODE" == "update" ]] ||
-    fail "DATAMIND_GO_INSTALL_MODE 只能是 auto、new 或 update"
+  [[ "$INSTALL_MODE" == "auto" || "$INSTALL_MODE" == "new" ||
+    "$INSTALL_MODE" == "update" || "$INSTALL_MODE" == "reinstall" ]] ||
+    fail "DATAMIND_GO_INSTALL_MODE 只能是 auto、new、update 或 reinstall"
 
   detect_existing_install
   if [[ "$EXISTING_INSTALL" -eq 0 ]]; then
     [[ "$INSTALL_MODE" != "update" ]] || fail "没有检测到已有 DataMind Go 安装，不能执行更新"
+    [[ "$INSTALL_MODE" != "reinstall" ]] || fail "没有检测到已有 DataMind Go 安装，不能执行重装"
     INSTALL_MODE="new"
     return
   fi
 
   [[ "$INSTALL_MODE" != "new" ]] ||
-    fail "检测到已有 DataMind Go 安装（${CURRENT_VERSION:-版本未知}）。如需保留数据，请使用 DATAMIND_GO_INSTALL_MODE=update。"
+    fail "检测到已有 DataMind Go 安装（${CURRENT_VERSION:-版本未知}）。如需保留数据，请使用 DATAMIND_GO_INSTALL_MODE=update；如需清空后重装，请使用 DATAMIND_GO_INSTALL_MODE=reinstall。"
 
   if [[ "$INSTALL_MODE" == "auto" ]]; then
     if [[ -r /dev/tty ]]; then
       printf '\n检测到已有 DataMind Go 安装：%s\n' "${CURRENT_VERSION:-版本未知}"
       printf '请选择操作：\n'
       printf '  1) 更新到 %s（保留数据、配置和 Cloud Key，推荐）\n' "$VERSION"
-      printf '  2) 退出\n'
+      printf '  2) 重新安装（清除已关联数据源、子账号和数据权限）\n'
+      printf '  3) 退出\n'
       local choice
       read -r -p '请选择 [1]： ' choice < /dev/tty || fail "未完成安装模式选择"
       case "${choice:-1}" in
         1) INSTALL_MODE="update" ;;
-        2|q|Q) fail "用户取消安装" ;;
-        *) fail "请输入 1 或 2" ;;
+        2) INSTALL_MODE="reinstall" ;;
+        3|q|Q) fail "用户取消安装" ;;
+        *) fail "请输入 1、2 或 3" ;;
       esac
     else
       INSTALL_MODE="update"
     fi
+  fi
+
+  if [[ "$INSTALL_MODE" == "reinstall" ]]; then
+    printf '\n警告：重新安装会删除当前 DataMind Go 的本地数据和配置。\n'
+    printf '以下内容将丢失：已经关联的数据源、分配的子账号、数据权限和本地审计数据。\n'
+    printf '重新安装后需要重新配置；此操作不能通过安装器自动恢复。\n'
+    if [[ -r /dev/tty ]]; then
+      local confirmation
+      read -r -p '确认继续请输入 REINSTALL，其他输入退出： ' confirmation < /dev/tty ||
+        fail "未完成重装确认"
+      [[ "$confirmation" == "REINSTALL" ]] || fail "用户取消重装"
+    else
+      [[ "${DATAMIND_GO_REINSTALL_CONFIRM:-}" == "REINSTALL" ]] ||
+        fail "非交互重装必须设置 DATAMIND_GO_REINSTALL_CONFIRM=REINSTALL"
+    fi
+    REINSTALL_CONFIRMED=1
   fi
 }
 
@@ -550,6 +571,8 @@ check_port_available() {
 
 check_install_environment() {
   printf '检查安装环境\n'
+  printf '隐私说明：DataMind 不会保留或记录用户私有业务数据，请放心使用。\n'
+  printf '提示：数据源配置、元数据、账号权限和审计信息仅保存在您自己的 DataMind 部署环境中。\n'
   printf '[1/5] 检查系统权限和架构 ... 通过（Linux %s）\n' "$ARCH"
   printf '[2/5] 检查必要依赖 ... '
   require_command tar
@@ -781,7 +804,10 @@ select_install_mode
 check_install_environment
 
 ENV_FILE="$INSTALL_DIR/.env"
-if [[ -z "$API_KEY" ]]; then
+if [[ "$INSTALL_MODE" == "reinstall" ]]; then
+  API_KEY=""
+fi
+if [[ "$INSTALL_MODE" != "reinstall" && -z "$API_KEY" ]]; then
   API_KEY="$(read_env_value "$ENV_FILE" "DATAMIND_CLOUD_API_KEY")"
 fi
 obtain_cloud_api_key
@@ -837,7 +863,14 @@ tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
 [[ -f "$EXTRACT_ROOT/migration-manifest.json" ]] || fail "Release 缺少 migration-manifest.json，拒绝执行未校验迁移链的 Release"
 [[ -f "$EXTRACT_ROOT/frontend-build.json" ]] || fail "Release 缺少 frontend-build.json，拒绝执行未绑定 Vue 构建信息的 Release"
 
-if [[ "$INSTALL_MODE" == "update" ]]; then
+if [[ "$INSTALL_MODE" == "reinstall" ]]; then
+  [[ "$REINSTALL_CONFIRMED" -eq 1 ]] || fail "重装确认状态无效"
+  printf '停止并清理旧版 DataMind Go，准备全新安装 %s ...\n' "$VERSION"
+  systemctl disable --now "$SERVICE_NAME.service" 2>/dev/null || true
+  rm -f "/etc/systemd/system/$SERVICE_NAME.service"
+  systemctl daemon-reload
+  rm -rf "$INSTALL_DIR"
+elif [[ "$INSTALL_MODE" == "update" ]]; then
   printf '停止旧版 DataMind Go 服务，准备切换到 %s ...\n' "$VERSION"
   systemctl stop "$SERVICE_NAME.service" ||
     fail "无法停止旧版 DataMind Go 服务，已取消更新"

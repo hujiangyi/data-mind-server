@@ -29,17 +29,22 @@ Cloud API key is available, the installer guides the user through registration:
   sudo DATAMIND_GO_VERSION=v0.1.6 bash
 ```
 
-When an existing installation is detected, the installer asks whether to update
-or exit. An update preserves `/opt/datamind-go/data`, runtime configuration,
-the MCP master key, and the Cloud API key. It stops the old service before
-replacing files and then force-restarts the systemd service. The mode can also
-be selected explicitly:
+When an existing installation is detected, the installer asks whether to update,
+reinstall, or exit. An update preserves `/opt/datamind-go/data`, runtime
+configuration, the MCP master key, and the Cloud API key. Reinstallation removes
+connected data sources, assigned subaccounts, data permissions, and local audit
+data; it requires reconfiguration and an explicit `REINSTALL` confirmation. The
+mode can also be selected explicitly:
 
 ```bash
 sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.6 \
   bash ./install/install-go.sh
 
 sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.6 \
+  bash ./install/install-go.sh
+
+sudo DATAMIND_GO_INSTALL_MODE=reinstall \
+  DATAMIND_GO_REINSTALL_CONFIRM=REINSTALL DATAMIND_GO_VERSION=v0.1.6 \
   bash ./install/install-go.sh
 ```
 
@@ -217,6 +222,13 @@ Release: it updates the service and migrations while preserving local data, then
 restarts the service. Do not overwrite `/opt/datamind-go/bin/daas-go` manually
 while the service is running.
 
+DataMind does not retain or record users' private business data. Data-source
+configuration, metadata, local accounts, data permissions, and audit information
+belong to the user's deployment and remain only on infrastructure controlled by
+the user or organization. Cloud AI requests transmit only what is needed for the
+current operation. See the [Privacy Policy](privacy-policy.md) for the complete
+boundary.
+
 Stop and remove a Linux installation:
 
 ```bash
@@ -235,3 +247,4 @@ option it removes the container while preserving local data.
 - [Release mirrors](release-mirrors.md)
 - [Troubleshooting](troubleshooting.md)
 - [Administrator guide](admin-guide.md)
+- [Privacy Policy](privacy-policy.md)

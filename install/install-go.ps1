@@ -8,6 +8,7 @@ param(
     [string]$CloudApiBase = "https://dm.iter-self.top/v1",
     [string]$McpSetupBaseUrl = "",
     [string]$McpPublicApiBase = "",
+    [string]$InstallMode = "",
     [switch]$ForceKey,
     [switch]$SkipChecksum
 )
@@ -17,6 +18,11 @@ $script:ApiKeyObtained = $false
 $script:BindAddress = if ([string]::IsNullOrWhiteSpace($env:DATAMIND_BIND_ADDRESS)) { "0.0.0.0" } else { $env:DATAMIND_BIND_ADDRESS }
 $script:Port = if ([string]::IsNullOrWhiteSpace($env:DATAMIND_PORT)) { 3001 } else { [int]$env:DATAMIND_PORT }
 $script:ServerIp = if ([string]::IsNullOrWhiteSpace($env:DATAMIND_SERVER_IP)) { "" } else { $env:DATAMIND_SERVER_IP }
+$script:InstallMode = if ([string]::IsNullOrWhiteSpace($InstallMode)) {
+    if ([string]::IsNullOrWhiteSpace($env:DATAMIND_GO_INSTALL_MODE)) { "auto" } else { $env:DATAMIND_GO_INSTALL_MODE }
+} else {
+    $InstallMode
+}
 
 function Fail([string]$Message) {
     throw $Message
@@ -346,10 +352,77 @@ function Test-PortAvailable([int]$Port) {
         $occupied = @(netstat -ano -p tcp 2>$null | Select-String "LISTENING\s+\S+\:$Port\s")
     }
     if ($occupied.Count -gt 0) {
+        if ($script:InstallMode -in @("update", "reinstall") -and
+            (Test-Path -LiteralPath (Join-Path $InstallDir "docker-compose.yml"))) {
+            Write-Host " 通过（已有 DataMind Docker 服务）"
+            return
+        }
         Write-Host " 未通过" -ForegroundColor Yellow
         Fail "服务端口已被占用，请停止占用端口的程序后重试"
     }
     Write-Host " 通过（$script:BindAddress`:$Port）"
+}
+
+function Select-InstallMode {
+    if ($script:InstallMode -notin @("auto", "new", "update", "reinstall")) {
+        Fail "InstallMode 或 DATAMIND_GO_INSTALL_MODE 只能是 auto、new、update 或 reinstall"
+    }
+
+    $versionFile = Join-Path $InstallDir "VERSION"
+    $existing = (Test-Path -LiteralPath $versionFile) -or
+        (Test-Path -LiteralPath (Join-Path $InstallDir ".env")) -or
+        (Test-Path -LiteralPath (Join-Path $InstallDir "data")) -or
+        (Test-Path -LiteralPath (Join-Path $InstallDir "docker-compose.yml"))
+    $currentVersion = if (Test-Path -LiteralPath $versionFile) {
+        (Get-Content -LiteralPath $versionFile -Raw).Trim()
+    } else {
+        "版本未知"
+    }
+
+    if (-not $existing) {
+        if ($script:InstallMode -eq "update") {
+            Fail "没有检测到已有 DataMind Go 安装，不能执行更新"
+        }
+        if ($script:InstallMode -eq "reinstall") {
+            Fail "没有检测到已有 DataMind Go 安装，不能执行重装"
+        }
+        $script:InstallMode = "new"
+        return
+    }
+
+    if ($script:InstallMode -eq "new") {
+        Fail "检测到已有 DataMind Go 安装（$currentVersion）。如需保留数据，请使用 -InstallMode update；如需清空后重装，请使用 -InstallMode reinstall。"
+    }
+
+    if ($script:InstallMode -eq "auto") {
+        Write-Host ""
+        Write-Host "检测到已有 DataMind Go 安装：$currentVersion"
+        Write-Host "请选择操作："
+        Write-Host "  1) 更新到 $Version（保留数据、配置和 Cloud Key，推荐）"
+        Write-Host "  2) 重新安装（清除已关联数据源、子账号和数据权限）"
+        Write-Host "  3) 退出"
+        $choice = Read-Host "请选择 [1]"
+        if ([string]::IsNullOrWhiteSpace($choice)) {
+            $choice = "1"
+        }
+        switch ($choice) {
+            "1" { $script:InstallMode = "update" }
+            "2" { $script:InstallMode = "reinstall" }
+            "3" { Fail "用户取消安装" }
+            default { Fail "请输入 1、2 或 3" }
+        }
+    }
+
+    if ($script:InstallMode -eq "reinstall") {
+        Write-Host ""
+        Write-Host "警告：重新安装会删除当前 DataMind Go 的本地数据和配置。" -ForegroundColor Red
+        Write-Host "以下内容将丢失：已经关联的数据源、分配的子账号、数据权限和本地审计数据。" -ForegroundColor Red
+        Write-Host "重新安装后需要重新配置；此操作不能通过安装器自动恢复。" -ForegroundColor Red
+        $confirmation = Read-Host "确认继续请输入 REINSTALL，其他输入退出"
+        if ($confirmation -ne "REINSTALL") {
+            Fail "用户取消重装"
+        }
+    }
 }
 
 function Test-DockerServiceReady([string]$Directory, [int]$Port) {
@@ -444,10 +517,13 @@ if ($script:Port -lt 1 -or $script:Port -gt 65535) {
 }
 
 Write-Host "检查安装环境"
+Write-Host "隐私说明：DataMind 不会保留或记录用户私有业务数据，请放心使用。"
+Write-Host "提示：数据源配置、元数据、账号权限和审计信息仅保存在您自己的 DataMind 部署环境中。"
 Write-Host "[1/5] 检查系统权限和架构 ... 通过（Windows $processorArchitecture）"
 Write-Host "[2/5] 检查 Docker Desktop 和 Linux 容器 ... 通过"
 Test-CloudNetwork
 Select-ReleaseBase
+Select-InstallMode
 Test-PortAvailable $script:Port
 
 $temporaryRoot = Join-Path $env:TEMP "datamind-go-$([guid]::NewGuid().ToString('N'))"
@@ -487,6 +563,22 @@ try {
         if (-not (Test-Path -LiteralPath (Join-Path $bundleRoot $required))) {
             Fail "Docker 分发包缺少：$required"
         }
+    }
+
+    if ($script:InstallMode -eq "reinstall") {
+        if (Test-Path -LiteralPath (Join-Path $InstallDir "docker-compose.yml")) {
+            Push-Location $InstallDir
+            try {
+                & docker compose --project-name datamind --project-directory $InstallDir down
+                if ($LASTEXITCODE -ne 0) {
+                    Fail "无法停止旧版 DataMind Docker 服务，已取消重装"
+                }
+            }
+            finally {
+                Pop-Location
+            }
+        }
+        Remove-Item -LiteralPath $InstallDir -Recurse -Force
     }
 
     New-Item -ItemType Directory -Force -Path $InstallDir, (Join-Path $InstallDir "data") | Out-Null
@@ -597,6 +689,7 @@ try {
     }
 
     Write-Host "DataMind Go Docker 服务已启动"
+    Write-Host "安装模式：$script:InstallMode"
     Write-Host "安装目录：$InstallDir"
     Write-Host "服务监听：$configuredBindAddress`:$port"
     Write-Host "本机访问：http://127.0.0.1:$port"

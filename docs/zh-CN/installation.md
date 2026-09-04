@@ -26,15 +26,21 @@ Vue 管理页面和服务端 API。
   sudo DATAMIND_GO_VERSION=v0.1.6 bash
 ```
 
-如果检测到已有安装，安装器会明确询问“更新”或“退出”。更新会保留
+如果检测到已有安装，安装器会明确询问“更新”“重新安装”或“退出”。更新会保留
 `/opt/datamind-go/data`、运行配置、MCP Master Key 和 Cloud API Key，并在
-替换二进制前停止旧服务，随后强制重启 systemd 服务。也可以明确指定模式：
+替换二进制前停止旧服务，随后强制重启 systemd 服务。重新安装会清除已经
+关联的数据源、分配的子账号、数据权限和本地审计数据，重装后必须重新配置；
+安装器会要求输入 `REINSTALL` 明确确认。也可以明确指定模式：
 
 ```bash
 sudo DATAMIND_GO_INSTALL_MODE=update DATAMIND_GO_VERSION=v0.1.6 \
   bash ./install/install-go.sh
 
 sudo DATAMIND_GO_INSTALL_MODE=new DATAMIND_GO_VERSION=v0.1.6 \
+  bash ./install/install-go.sh
+
+sudo DATAMIND_GO_INSTALL_MODE=reinstall \
+  DATAMIND_GO_REINSTALL_CONFIRM=REINSTALL DATAMIND_GO_VERSION=v0.1.6 \
   bash ./install/install-go.sh
 ```
 
@@ -56,8 +62,9 @@ VERSION
 
 `bin/datamind-upgrade` 会在更新模式下先备份现有 SQLite 数据库和配置，再
 执行全部未完成的跨版本迁移。迁移、配置迁移或校验失败时，安装器不会切换
-新服务版本。缺少升级工具的旧 Release 不能继续使用，也不能通过卸载重装
-规避检查；请改用包含完整升级资产的新 Release。
+新服务版本。重新安装不执行旧数据迁移，而是从空数据目录开始；请确认已经
+完成必要备份。缺少升级工具的旧 Release 不能继续使用，请改用包含完整升级
+资产的新 Release。
 
 服务默认监听 `0.0.0.0:3001`，同时提供 Vue 网站和服务端 API。安装前会
 检查端口是否已被占用，启动后会等待服务进程、监听地址和健康接口全部通过。
@@ -219,6 +226,11 @@ https://data.example.com -> Nginx :443 -> DataMind Server :3001
 migrations，保留本地数据目录，并在文件切换后强制重启服务。不要在服务仍
 运行时手工覆盖 `/opt/datamind-go/bin/daas-go`。
 
+DataMind 不会保留或记录用户私有业务数据，请放心使用。数据源配置、元数据、
+本地账号、数据权限和审计信息是您自己的部署数据，仅保存在您控制的服务器
+或 Docker 环境中；Cloud AI 请求只传输完成当前操作所必需的内容。完整边界
+请参阅[隐私协议](privacy-policy.md)。
+
 Linux 停止并移除服务：
 
 ```bash
@@ -237,3 +249,4 @@ Windows 使用对应的 `uninstall-go.ps1` 脚本。未使用清理数据选项�
 - [Release 镜像](release-mirrors.md)
 - [故障排查](troubleshooting.md)
 - [管理员操作指南](admin-guide.md)
+- [隐私协议](privacy-policy.md)

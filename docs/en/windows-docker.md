@@ -68,6 +68,20 @@ Runtime data is stored under:
 %LOCALAPPDATA%\DataMind\data
 ```
 
+When an existing installation is detected, the installer offers update,
+reinstall, or exit:
+
+- update preserves existing data, configuration, and the Cloud API key;
+- reinstall deletes connected data sources, assigned subaccounts, data
+  permissions, and local audit data, requires reconfiguration, and requires
+  typing `REINSTALL` to confirm;
+- back up anything that must be retained before reinstalling.
+
+DataMind does not retain or record users' private business data. Data-source
+configuration, metadata, account permissions, and audit information remain
+only in the user's own Docker deployment. See the [Privacy Policy](privacy-policy.md)
+for the complete boundary.
+
 Configuration and the DataMind API Key are stored under the same installation
 directory. A newly obtained key is shown once with its save location. Upgrades
 replace the versioned binary and runtime files while preserving the local
