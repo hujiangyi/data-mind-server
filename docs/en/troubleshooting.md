@@ -44,12 +44,12 @@ direct connection if it fails. After confirming DNS and HTTPS access from the
 server, choose a direct connection or a proxy:
 
 ```bash
-sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.10 bash ./install/install-go.sh
+sudo DATAMIND_CURL_NO_PROXY=1 DATAMIND_GO_VERSION=v0.1.11 bash ./install/install-go.sh
 ```
 
 ```bash
 sudo DATAMIND_CURL_PROXY=http://proxy.example.com:8080 \
-  DATAMIND_GO_VERSION=v0.1.10 bash ./install/install-go.sh
+  DATAMIND_GO_VERSION=v0.1.11 bash ./install/install-go.sh
 ```
 
 If the Cloud AI check passes but a Release source does not, set

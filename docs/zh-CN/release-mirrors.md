@@ -72,10 +72,10 @@ VERSION
 上传后可使用以下命令检查 Gitee 资产：
 
 ```bash
-mkdir -p /tmp/datamind-v0.1.10-gitee-check
-curl -fL -o /tmp/datamind-v0.1.10-gitee-check/server.tar.gz \
-  https://gitee.com/hujiangyi/data-mind-server/releases/download/v0.1.10/datamind-go-linux-amd64.tar.gz
-tar -tzf /tmp/datamind-v0.1.10-gitee-check/server.tar.gz | \
+mkdir -p /tmp/datamind-v0.1.11-gitee-check
+curl -fL -o /tmp/datamind-v0.1.11-gitee-check/server.tar.gz \
+  https://gitee.com/hujiangyi/data-mind-server/releases/download/v0.1.11/datamind-go-linux-amd64.tar.gz
+tar -tzf /tmp/datamind-v0.1.11-gitee-check/server.tar.gz | \
   grep -E '(^|/)bin/(daas-go|datamind-upgrade)$|migration-manifest.json|^\\./VERSION$|configs/config.yaml'
 ```
 
@@ -86,7 +86,7 @@ Linux 一键命令可以先选择可访问的 raw 脚本源：
 ```bash
 { curl -fsSL --connect-timeout 8 https://raw.githubusercontent.com/hujiangyi/data-mind-server/main/install/install-go.sh ||
   curl -fsSL --connect-timeout 8 https://gitee.com/hujiangyi/data-mind-server/raw/main/install/install-go.sh; } |
-  sudo DATAMIND_GO_VERSION=v0.1.10 bash
+  sudo DATAMIND_GO_VERSION=v0.1.11 bash
 ```
 
 脚本启动后还会独立探测可访问的 Release 下载源。
