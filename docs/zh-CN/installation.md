@@ -248,5 +248,7 @@ Windows 使用对应的 `uninstall-go.ps1` 脚本。未使用清理数据选项�
 - [Nginx 部署](nginx.md)
 - [Release 镜像](release-mirrors.md)
 - [故障排查](troubleshooting.md)
-- [管理员操作指南](admin-guide.md)
+- [管理员快速开始](admin-quickstart.md)
+- [管理员使用指南](admin-guide.md)
+- [管理员任务配方](admin-task-cookbook.md)
 - [隐私协议](privacy-policy.md)

@@ -189,7 +189,9 @@ DataMind 不会保留或记录用户私有业务数据，请放心使用。完�
 生产环境建议使用 HTTPS 域名反向代理到 Go 服务。参考：
 
 - [Nginx 部署](docs/zh-CN/nginx.md)
-- [管理员操作指南](docs/zh-CN/admin-guide.md)
+- [管理员快速开始](docs/zh-CN/admin-quickstart.md)
+- [管理员使用指南](docs/zh-CN/admin-guide.md)
+- [管理员任务配方](docs/zh-CN/admin-task-cookbook.md)
 - [Windows Docker](docs/zh-CN/windows-docker.md)
 - [Release 镜像](docs/zh-CN/release-mirrors.md)
 
